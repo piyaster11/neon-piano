@@ -9,22 +9,61 @@ const noteToMidi = s => { const r = /^([A-Ga-g])([#b]?)(-?\d)$/.exec(s); if(!r) 
 let LO = 36, HI = 96; // C2..C7 ; narrowed on phones
 const hueFor = m => (m*37) % 360;
 
-// ---------- audio ----------
-let ac, master;
-function audio(){ if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)();
-  master = ac.createGain(); master.gain.value = +$('vol').value;
-  const comp = ac.createDynamicsCompressor(); master.connect(comp); comp.connect(ac.destination);}
-  if(ac.state==='suspended') ac.resume(); return ac; }
+// ---------- audio: Salamander Grand Piano samples (CC-BY 3.0, Alexander Holm) ----------
+let ac, master, dry, wet, conv, samples={}, loaded=false, reverbOn=true, sustainOn=false, pedalHeld=false;
+const voices={}; // midi -> [{g,src,sustained}]
+function mkCtx(){ if(ac) return; ac=new (window.AudioContext||window.webkitAudioContext)();
+  master=ac.createGain(); master.gain.value=+$('vol').value;
+  const comp=ac.createDynamicsCompressor(); comp.threshold.value=-14; comp.ratio.value=3;
+  dry=ac.createGain(); wet=ac.createGain(); wet.gain.value=reverbOn?0.22:0; conv=ac.createConvolver(); conv.buffer=hallIR();
+  master.connect(dry); master.connect(conv); conv.connect(wet); dry.connect(comp); wet.connect(comp); comp.connect(ac.destination); }
+function hallIR(){ const len=ac.sampleRate*2.6, buf=ac.createBuffer(2,len,ac.sampleRate);
+  for(let c=0;c<2;c++){ const d=buf.getChannelData(c); for(let i=0;i<len;i++){ const t=i/ac.sampleRate; d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3)*Math.exp(-t*1.4)*(t<0.012?t/0.012:1); } }
+  return buf; }
+function audio(){ mkCtx(); if(ac.state!=='running') ac.resume(); return ac; }
+// iOS / autoplay unlock on first gesture
+['pointerdown','touchend','keydown'].forEach(ev=>addEventListener(ev,function unlock(){ mkCtx(); ac.resume();
+  const b=ac.createBufferSource(); b.buffer=ac.createBuffer(1,1,22050); b.connect(ac.destination); b.start(0);
+  if(ac.state==='running') ['pointerdown','touchend','keydown'].forEach(e=>removeEventListener(e,unlock,true)); },true));
 $('vol').oninput = e => { if(master) master.gain.value = +e.target.value; };
-function tone(m, dur=0.5, vel=0.8){ audio(); const t = ac.currentTime, f = 440*Math.pow(2,(m-69)/12);
+const SAMPLE_NAMES=[]; for(let o=0;o<=7;o++) for(const [n,pc] of [['C',0],['Ds',3],['Fs',6],['A',9]]){ const m=(o+1)*12+pc; if(m>=21) SAMPLE_NAMES.push([n+o,m]); } SAMPLE_NAMES.push(['C8',108]);
+async function loadSamples(){ mkCtx(); let done=0; const btn=$('play'); const status=$('loading');
+  const upd=()=>{ status.textContent=`🎹 Loading grand piano… ${done}/${SAMPLE_NAMES.length}`; }; upd();
+  try{ await Promise.all(SAMPLE_NAMES.map(async([n,m])=>{ const r=await fetch(`samples/${n}.mp3`); if(!r.ok) throw n+' '+r.status;
+      const ab=await r.arrayBuffer(); samples[m]=await new Promise((res,rej)=>ac.decodeAudioData(ab,res,rej)); done++; upd(); }));
+    loaded=true; status.textContent='🎹 Grand piano ready'; status.classList.add('ready'); setTimeout(()=>status.classList.add('hide'),2500); }
+  catch(e){ console.warn('sample load failed',e); status.textContent='⚠️ Piano samples failed to load — using synth'; status.classList.add('ready'); window.__sampleError=String(e); }
+  window.__samplesLoaded=loaded; }
+function nearestSample(m){ let best=null,bd=1e9; for(const k in samples){ const d=Math.abs(k-m); if(d<bd){bd=d;best=+k;} } return best; }
+function releaseVoice(v,t){ if(v.done) return; v.done=true; t=Math.max(t,ac.currentTime); v.g.gain.cancelScheduledValues(t); v.g.gain.setValueAtTime(v.g.gain.value||v.peak,t); v.g.gain.setTargetAtTime(0,t,0.09); v.src.stop(t+1); }
+function noteOff(m,t){ (voices[m]||[]).forEach(v=>{ if(sustainOn||pedalHeld) v.sustained=true; else releaseVoice(v,t); }); if(!(sustainOn||pedalHeld)) voices[m]=[]; }
+function pedalUp(){ if(!ac) return; const t=ac.currentTime; for(const m in voices){ voices[m].forEach(v=>{ if(v.sustained) releaseVoice(v,t); }); voices[m]=voices[m].filter(v=>!v.done); } }
+function tone(m, dur=0.5, vel=0.8){ audio(); const t=ac.currentTime; vel=Math.max(0.05,Math.min(1,vel));
+  if(!loaded) return synth(m,dur,vel);
+  const sm=nearestSample(m), src=ac.createBufferSource(); src.buffer=samples[sm]; src.playbackRate.value=Math.pow(2,(m-sm)/12);
+  const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1800+vel*vel*16000;
+  const g=ac.createGain(); const peak=Math.pow(vel,1.6)*1.1; g.gain.setValueAtTime(peak,t);
+  src.connect(lp); lp.connect(g); g.connect(master); src.start(t);
+  // repeated note: damp the previous strike of the same key
+  (voices[m]||[]).forEach(v=>releaseVoice(v,t+0.02));
+  const v={g,src,peak}; voices[m]=[v]; src.onended=()=>{ v.done=true; };
+  setTimeout(()=>{ if(!v.done){ if(sustainOn||pedalHeld) v.sustained=true; else releaseVoice(v,ac.currentTime); } }, Math.max(80,dur*1000)); }
+function synth(m, dur, vel){ const t = ac.currentTime, f = 440*Math.pow(2,(m-69)/12);
   const g = ac.createGain(); g.connect(master);
   const lp = ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = Math.min(9000, f*8); lp.connect(g);
-  [['triangle',1,0.5],['sine',2,0.18],['sawtooth',1,0.05]].forEach(([type,mul,amp])=>{
+  [['triangle',1,0.5],['sine',2,0.18]].forEach(([type,mul,amp])=>{
     const o = ac.createOscillator(); o.type = type; o.frequency.value = f*mul; const og = ac.createGain(); og.gain.value = amp;
     o.connect(og); og.connect(lp); o.start(t); o.stop(t+dur+1.6); });
   g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.35*vel,t+0.008);
   g.gain.exponentialRampToValueAtTime(0.12*vel,t+0.25); g.gain.setValueAtTime(0.12*vel,t+Math.max(0.26,dur));
   g.gain.exponentialRampToValueAtTime(0.0001,t+dur+1.5); }
+// controls: sustain toggle, Shift = hold pedal, reverb toggle
+function syncBtns(){ $('sus').classList.toggle('on',sustainOn||pedalHeld); $('sus').textContent=(sustainOn||pedalHeld)?'🦶 Sustain ON':'🦶 Sustain'; $('rev').classList.toggle('on',reverbOn); $('rev').textContent=reverbOn?'🏛 Hall ON':'🏛 Hall'; }
+$('sus').onclick=()=>{ sustainOn=!sustainOn; if(!sustainOn) pedalUp(); syncBtns(); };
+$('rev').onclick=()=>{ reverbOn=!reverbOn; if(wet) wet.gain.setTargetAtTime(reverbOn?0.22:0,ac.currentTime,0.1); syncBtns(); };
+addEventListener('keydown',e=>{ if(e.key==='Shift'&&!pedalHeld&&!(e.target.tagName==='INPUT'&&e.target.type==='text')){ pedalHeld=true; syncBtns(); } });
+addEventListener('keyup',e=>{ if(e.key==='Shift'&&pedalHeld){ pedalHeld=false; if(!sustainOn) pedalUp(); syncBtns(); } });
+syncBtns(); loadSamples();
 
 // ---------- layout ----------
 let W,H,kbH,keys=[],dpr=1;
@@ -143,7 +182,7 @@ function start(){ audio(); playing=true; last=performance.now(); $('pause').text
 $('play').onclick = () => { if(fromInput()) start(); };
 $('song').onkeydown = e => { if(e.key==='Enter'){ e.preventDefault(); $('play').click(); } };
 $('pause').onclick = () => { if(!song.notes.length) return; if(playing){playing=false;$('pause').textContent='▶';} else start(); };
-$('stop').onclick = () => { playing=false; pos=-1.2; nextIdx=0; $('pause').textContent='⏸'; };
+$('stop').onclick = () => { if(ac) for(const m in voices){ voices[m].forEach(v=>releaseVoice(v,ac.currentTime)); voices[m]=[]; } playing=false; pos=-1.2; nextIdx=0; $('pause').textContent='⏸'; };
 $('tempo').oninput = e => { tempo=+e.target.value; $('tv').textContent=tempo.toFixed(2).replace(/0$/,'')+'×'; };
 function legend(){ const L=$('legend'); if(!L) return; L.innerHTML=''; if(!song.notes.length) return;
   if(song.mode==='hands'){ [['rh','Right hand',HUE_RH],['lh','Left hand',HUE_LH]].forEach(([k,lab,h])=>{ if(!song.notes.some(n=>(n.h?'lh':'rh')===k)) return;

@@ -14,6 +14,14 @@ A single-page, Synthesia-style neon piano that runs in the browser. It has no bu
 - If the app doesn't know a song name, it shows a friendly message suggesting songs it does have.
 - Deep link: `index.html?song=ode+to+joy&seek=2`
 
+## Sound
+- Real grand piano sound from **Salamander Grand Piano** samples. 30 samples (every minor third, A0 to C8, about 2 MB of MP3) are bundled in `samples/`, and notes in between are pitch-shifted from the nearest sample.
+- Notes get louder and brighter the harder they're played (velocity), and they release naturally.
+- 🦶 **Sustain** pedal: use the toggle button, or **hold Shift** as the pedal (Space is play/pause).
+- 🏛 **Hall** toggles a subtle concert-hall reverb.
+- A loading badge shows progress until the samples are ready. Audio unlocks on the first tap, which iOS requires.
+- If the samples can't load, the app falls back to the built-in synth.
+
 ## Two hands
 - Every built-in song has a left-hand accompaniment, such as the Alberti bass under *Für Elise*, the walking bass in *Canon in D* and chords under *Ode to Joy*.
 - The right hand is shown in **cyan** and the left hand in **magenta**. The legend has RH and LH mute toggles.
@@ -31,5 +39,8 @@ Saved songs are kept in your browser's `localStorage` (key `neonPiano.mySongs`).
 python3 -m http.server 8080   # then open http://localhost:8080
 ```
 
+## Credits
+Piano samples: **Salamander Grand Piano V3** by Alexander Holm, licensed [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/). These are the MP3 conversions from the Tone.js audio repository.
+
 ## License
-MIT. The melodies are public-domain or traditional tunes, encoded by hand.
+MIT for the code (the samples are CC-BY 3.0, see Credits). The melodies are public-domain or traditional tunes, encoded by hand.

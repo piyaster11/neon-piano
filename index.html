@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
-<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#05030c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🎹%3C/text%3E%3C/svg%3E"><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#05030c">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Piyaster Piano</title>
 <style>
@@ -23,6 +23,8 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 body.drag #stage{outline:3px dashed #ff4fd8;outline-offset:-8px}
 #lib span:hover{border-color:#0ff;color:#0ff}
 #file{display:none}
+#loading{position:fixed;right:12px;bottom:12px;z-index:5;font-size:13px;padding:8px 12px;border-radius:10px;background:#1a1040;border:1px solid #00e5ff;box-shadow:0 0 14px #00e5ff88;transition:opacity .6s}#loading.ready{border-color:#c400ff}#loading.hide{opacity:0;pointer-events:none}
+button.on{background:#3a1a80;box-shadow:0 0 12px #c400ff}
 #legend{display:flex;flex-wrap:wrap;gap:6px;padding:0 10px 6px;background:rgba(10,6,25,.6);z-index:2}#legend:empty{display:none}
 .hand{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--c,#7a5cff);background:#0d0820;color:#fff;box-shadow:0 0 8px var(--c,#7a5cff);display:inline-flex;align-items:center;gap:6px}.hand i{width:10px;height:10px;border-radius:3px;background:var(--c,#7a5cff);box-shadow:0 0 6px var(--c)}.hand.off{opacity:.45;box-shadow:none}
 @media (max-width:640px){h1{font-size:15px}header{gap:6px;padding:6px}button,.btn{padding:7px 9px;font-size:13px}input[type=range]{width:70px}#lib{max-height:52px;overflow:auto}}
@@ -36,10 +38,13 @@ body.drag #stage{outline:3px dashed #ff4fd8;outline-offset:-8px}
 <button id="stop">⏹</button>
 <label class="btn" for="file">🎵 MIDI</label><input id="file" type="file" accept=".mid,.midi">
 <button id="save" title="Save the loaded song to My Songs">💾 Save</button>
+<button id="sus" title="Sustain pedal (toggle) — or hold Shift">🦶 Sustain</button>
+<button id="rev" title="Concert hall reverb">🏛 Hall</button>
 <label>Tempo <input id="tempo" type="range" min="0.4" max="2" step="0.05" value="1"><span id="tv">1.0×</span></label>
 <label>Vol <input id="vol" type="range" min="0" max="1" step="0.01" value="0.7"></label>
 </header>
 <div id="msg">Type a song name and press Play, click a song below, or play the keys (keyboard: A W S E D F T G Y H U J K…).</div>
+<div id="loading">🎹 Loading grand piano…</div>
 <div id="legend"></div>
 <div id="lib"></div>
 <div id="stage"><canvas id="cv"></canvas></div>
