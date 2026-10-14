@@ -1,4 +1,4 @@
-# ✦ Neon Piano
+# ✦ Piyaster Piano
 
 A single-page, Synthesia-style neon piano that runs in the browser. It has no build step and no dependencies, and it makes its sound with the Web Audio API.
 
@@ -13,6 +13,12 @@ A single-page, Synthesia-style neon piano that runs in the browser. It has no bu
 - Play, pause and stop buttons, a tempo slider (0.4–2×) and a volume slider.
 - If the app doesn't know a song name, it shows a friendly message suggesting songs it does have.
 - Deep link: `index.html?song=ode+to+joy&seek=2`
+
+## Two hands
+- Every built-in song has a left-hand accompaniment, such as the Alberti bass under *Für Elise*, the walking bass in *Canon in D* and chords under *Ode to Joy*.
+- The right hand is shown in **cyan** and the left hand in **magenta**. The legend has RH and LH mute toggles.
+- Type both hands in the song box: `RH: E4 D4 C4 D4 E4 E4 E4:2  LH: C3+E3+G3:2 G2+B2+D3:2`
+- MIDI import plays every track and channel. Two-part files are split into RH and LH by pitch, and files with more parts are colored per track.
 
 ## My Songs (your own music)
 The app ships only public-domain or traditional melodies. For anything else, such as songs by the Beatles or music from Final Fantasy or Studio Ghibli, **you supply your own files**:

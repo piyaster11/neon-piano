@@ -33,3 +33,24 @@ const SONGS = [
  {name:"In the Hall of the Mountain King (Grieg)",alias:["mountain king","hall of the mountain king","grieg"],bpm:150,
   m:"A3:0.5 B3:0.5 C4:0.5 D4:0.5 E4:0.5 C4:0.5 E4 D#4:0.5 B3:0.5 D#4 D4:0.5 A#3:0.5 D4 A3:0.5 B3:0.5 C4:0.5 D4:0.5 E4:0.5 C4:0.5 E4:0.5 A4:0.5 G4:0.5 E4:0.5 C4:0.5 E4:0.5 G4:2"}
 ];
+
+// Left-hand accompaniment. Either an explicit token string (lh) or a chord progression
+// (prog, "Chord[:beats]" tokens, default length = bar) rendered with a style.
+const LH = {
+ "Twinkle Twinkle Little Star": {style:"alb",bar:2,prog:"C C F C F C G C C F C G C F C G C C F C F C G C"},
+ "Ode to Joy (Beethoven)": {style:"alb",bar:2,prog:"C C G G C C G G C C G G C C G C G C G C G C G G C C G G C C G C"},
+ "Für Elise (intro, Beethoven)": {lh:"R:4 A2:0.5 E3:0.5 A3:0.5 R:1.5 E2:0.5 E3:0.5 G#3:0.5 R:1.5 A2:0.5 E3:0.5 A3:0.5 R:0.5 R:4 A2:0.5 E3:0.5 A3:0.5 R:1.5 E2:0.5 E3:0.5 G#3:0.5 R:1.5 A2:0.5 E3:0.5 A3:1"},
+ "Happy Birthday": {style:"waltz",bar:3,start:1,prog:"C G G C C F G C"},
+ "Canon in D (Pachelbel)": {style:"bass",bar:2,prog:"D A Bm F#m G D G A D A Bm F#m G D G A D A Bm F#m G D G A D A Bm D:1"},
+ "Jingle Bells": {style:"oompah",bar:4,prog:"C C C C F C D7 G C C C C F C G C"},
+ "Mary Had a Little Lamb": {style:"alb",bar:4,prog:"C C G C C C G C"},
+ "Brahms' Lullaby": {style:"waltz",bar:3,start:1,prog:"C C C F G G G C"},
+ "Amazing Grace": {style:"waltz",bar:3,start:1,prog:"G G C G G G D"},
+ "Frère Jacques": {style:"alb",bar:4,prog:"C C C C C C G C"},
+ "Row Row Row Your Boat": {style:"arp",bar:3,prog:"C C C C C C G C"},
+ "Greensleeves": {style:"waltz",bar:3,start:1,prog:"Am C G Em Am E Am E Am C G Em Am E Am"},
+ "Saints Go Marching In": {style:"oompah",bar:4,start:3,prog:"C C C C C C G G C C F C G C:3"},
+ "London Bridge": {style:"alb",bar:4,prog:"C C G C C C G C"},
+ "Scarborough Fair": {style:"waltz",bar:3,prog:"Dm Dm C Dm F C G Dm"},
+ "In the Hall of the Mountain King (Grieg)": {style:"march",bar:4,prog:"Am:4 B:2 Bb:2 Am:4 C:4"}
+};
