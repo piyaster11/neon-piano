@@ -66,11 +66,14 @@ function parseABC(str){ let L=0.5, bpm=120, key=''; const body=[];
       for(const c of m[3]) base += c==','?-12:12; base += m[1]=='^'?1:m[1]=='_'?-1:0; out.push({m:base,t,d:len*spb*0.95}); }
     t += len*spb; }
   return out.length?out:null; }
+const LS='neonPiano.mySongs';
+function getMine(){ try{ return JSON.parse(localStorage.getItem(LS))||[]; }catch(e){ return []; } }
+function setMine(a){ localStorage.setItem(LS,JSON.stringify(a)); }
 function norm(s){ return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim(); }
 function lev(a,b){ const d=Array.from({length:a.length+1},(_,i)=>[i]); for(let j=1;j<=b.length;j++)d[0][j]=j;
   for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]==b[j-1]?0:1)); return d[a.length][b.length]; }
 function findSong(q){ q = norm(q); if(!q) return null; let best=null, bs=0;
-  for(const s of SONGS){ for(const cand of [s.name,...s.alias].map(norm)){
+  for(const s of [...getMine().map(o=>({...o,alias:[],mine:true})),...SONGS]){ for(const cand of [s.name,...s.alias].map(norm)){
     let sc = cand.includes(q)||q.includes(cand) ? 1 : 0;
     if(!sc){ const qw=q.split(' '), cw=cand.split(' '); const hits=qw.filter(w=>cw.some(c=>lev(w,c)<=Math.max(1,Math.floor(c.length/4)))).length; sc = 0.9*hits/Math.max(qw.length,1); }
     if(!sc) sc = 1 - lev(q,cand)/Math.max(q.length,cand.length);
@@ -79,11 +82,11 @@ function findSong(q){ q = norm(q); if(!q) return null; let best=null, bs=0;
 function load(name, notes){ notes.sort((a,b)=>a.t-b.t); song={name,notes}; pos=-1.2; nextIdx=0; layout(); }
 function msg(t){ $('msg').innerHTML = t; }
 function fromInput(){ const q=$('song').value.trim(); if(!q){ msg('Type a song name or some notes first ✨'); return false; }
-  let n = parseTokens(q,100); if(n){ load('Your notes',n); msg('Playing your notes 🎹'); return true; }
+  let n = parseTokens(q,100); if(n){ load('Your notes',n); msg('Playing your notes 🎹 Press 💾 Save to keep them in My Songs.'); return true; }
   if(/[A-Ga-g]/.test(q) && (/^X:|\nK:|^[\^_=A-Ga-gzZ,'\d\/\s|]+$/.test(q)) && !/\s[a-z]{3,}/i.test(' '+q.replace(/^[A-Za-z]:.*$/gm,''))){
     n = parseABC(q); if(n){ load('ABC tune',n); msg('Playing ABC notation 🎼'); return true; } }
-  const s = findSong(q); if(s){ load(s.name, parseTokens(s.m, s.bpm)); msg(`Now playing: <b>${s.name}</b>`); return true; }
-  msg(`Sorry, I don't have “${q.replace(/</g,'&lt;')}” yet 🎵 Try: ${SONGS.slice(0,6).map(s=>s.name).join(', ')}… or type notes like <code>C4 D4 E4:2</code>, or load a MIDI file.`); return false; }
+  const s = findSong(q); if(s){ load(s.name, s.mine? s.notes.map(n=>({...n})) : parseTokens(s.m, s.bpm)); msg(`Now playing: <b>${s.name.replace(/</g,'&lt;')}</b>${s.mine?' (My Songs)':''}`); return true; }
+  msg(`Sorry, I don't have “${q.replace(/</g,'&lt;')}” yet 🎵 Try: ${SONGS.slice(0,6).map(s=>s.name).join(', ')}… or type notes like <code>C4 D4 E4:2</code>, or drop in your own MIDI file and 💾 Save it to My Songs.`); return false; }
 
 // ---------- MIDI file ----------
 function parseMidi(buf){ const d=new DataView(buf); let p=0; const str=n=>{let s='';for(let i=0;i<n;i++)s+=String.fromCharCode(d.getUint8(p+i));p+=n;return s;};
@@ -103,7 +106,7 @@ function parseMidi(buf){ const d=new DataView(buf); let p=0; const str=n=>{let s
   tempos.sort((a,b)=>a.tick-b.tick); const sec=tk=>{let s=0,prev=0,us=500000; for(const t of tempos){ if(t.tick>=tk) break; s+=(t.tick-prev)*us/div/1e6; prev=t.tick; us=t.us; } return s+(tk-prev)*us/div/1e6; };
   return ev.map(e=>({m:e.m,t:sec(e.s),d:Math.max(0.08,sec(e.e)-sec(e.s)),v:e.v})); }
 $('file').onchange = async e => { const f=e.target.files[0]; if(!f) return; try{ const n=parseMidi(await f.arrayBuffer()); if(!n.length) throw 'No notes found';
-  load(f.name,n); msg(`Loaded MIDI: <b>${f.name}</b> (${n.length} notes)`); start(); } catch(err){ msg('Could not read that MIDI file: '+err); } e.target.value=''; };
+  load(f.name,n); msg(`Loaded MIDI: <b>${f.name}</b> (${n.length} notes)`); start(); saveCurrent(f.name.replace(/\.midi?$/i,'')); } catch(err){ msg('Could not read that MIDI file: '+err); } e.target.value=''; };
 
 // ---------- controls ----------
 function start(){ audio(); playing=true; last=performance.now(); $('pause').textContent='⏸'; }
@@ -112,7 +115,26 @@ $('song').onkeydown = e => { if(e.key==='Enter'){ e.preventDefault(); $('play').
 $('pause').onclick = () => { if(!song.notes.length) return; if(playing){playing=false;$('pause').textContent='▶';} else start(); };
 $('stop').onclick = () => { playing=false; pos=-1.2; nextIdx=0; $('pause').textContent='⏸'; };
 $('tempo').oninput = e => { tempo=+e.target.value; $('tv').textContent=tempo.toFixed(2).replace(/0$/,'')+'×'; };
-const lib=$('lib'); SONGS.forEach(s=>{ const b=document.createElement('span'); b.textContent=s.name; b.onclick=()=>{ $('song').value=s.name; $('play').click(); }; lib.appendChild(b); });
+const lib=$('lib');
+function renderLib(){ lib.innerHTML=''; const mine=getMine();
+  if(mine.length){ const h=document.createElement('b'); h.textContent='My Songs'; lib.appendChild(h);
+    mine.forEach(s=>{ const b=document.createElement('span'); b.className='mine'; b.textContent=s.name; const x=document.createElement('i'); x.textContent='✕'; x.title='Delete';
+      x.onclick=e=>{ e.stopPropagation(); if(confirm('Delete “'+s.name+'” from My Songs?')){ setMine(getMine().filter(o=>o.name!==s.name)); renderLib(); } };
+      b.appendChild(x); b.onclick=()=>{ $('song').value=s.name; $('play').click(); }; lib.appendChild(b); });
+    const h2=document.createElement('b'); h2.textContent='Built-in (public domain)'; lib.appendChild(h2); }
+  SONGS.forEach(s=>{ const b=document.createElement('span'); b.textContent=s.name; b.onclick=()=>{ $('song').value=s.name; $('play').click(); }; lib.appendChild(b); }); }
+function saveCurrent(def){ if(!song.notes.length){ msg('Load a MIDI file or type notes first, then press 💾 Save.'); return; }
+  const name=(prompt('Name this song for My Songs:', def||song.name)||'').trim(); if(!name) return;
+  const notes=song.notes.map(n=>({m:n.m,t:+n.t.toFixed(3),d:+n.d.toFixed(3),...(n.v!=null?{v:+n.v.toFixed(2)}:{})}));
+  try{ setMine([...getMine().filter(o=>o.name.toLowerCase()!==name.toLowerCase()),{name,notes}]); song.name=name; renderLib(); msg(`Saved <b>${name.replace(/</g,'&lt;')}</b> to My Songs 💾`); }
+  catch(e){ msg('Could not save (browser storage full?)'); } }
+$('save').onclick=()=>saveCurrent();
+renderLib();
+// drag & drop MIDI anywhere
+addEventListener('dragover',e=>{e.preventDefault();document.body.classList.add('drag');});
+addEventListener('dragleave',e=>{ if(!e.relatedTarget) document.body.classList.remove('drag'); });
+addEventListener('drop',async e=>{ e.preventDefault(); document.body.classList.remove('drag'); const f=e.dataTransfer.files[0]; if(!f) return;
+  try{ const n=parseMidi(await f.arrayBuffer()); if(!n.length) throw 'No notes found'; load(f.name.replace(/\.midi?$/i,''),n); start(); saveCurrent(); }catch(err){ msg('Could not read that MIDI file: '+err); } });
 
 // mouse/touch on keys
 function keyAt(x,y){ if(y<H-kbH) return null; const yy=y-(H-kbH);

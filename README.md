@@ -14,6 +14,12 @@ A single-page, Synthesia-style neon piano that runs in the browser. It has no bu
 - If the app doesn't know a song name, it shows a friendly message suggesting songs it does have.
 - Deep link: `index.html?song=ode+to+joy&seek=2`
 
+## My Songs (your own music)
+The app ships only public-domain or traditional melodies. For anything else, such as songs by the Beatles or music from Final Fantasy or Studio Ghibli, **you supply your own files**:
+- Drag a `.mid` file onto the page or use **🎵 MIDI**. The app plays it and asks you for a name.
+- Or paste notes or ABC into the box, press Play, then press **💾 Save**.
+Saved songs are kept in your browser's `localStorage` (key `neonPiano.mySongs`). They show up under **My Songs**, the song-name box searches them, and you can delete one with ✕. Nothing is uploaded anywhere. Please use only files you have the right to use.
+
 ## Run
 ```
 python3 -m http.server 8080   # then open http://localhost:8080
