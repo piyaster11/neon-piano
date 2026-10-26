@@ -15,7 +15,7 @@ A single-page, Synthesia-style neon piano that runs in the browser. It has no bu
 - Deep link: `index.html?song=ode+to+joy&seek=2`
 
 ## Sound
-- Real grand piano sound from **Salamander Grand Piano** samples. 30 samples (every minor third, A0 to C8, about 2 MB of MP3) are bundled in `samples/`, and notes in between are pitch-shifted from the nearest sample.
+- Real grand piano sound from **Salamander Grand Piano** samples. 30 notes per velocity layer (every minor third, A0 to C8) in `samples/v4`, `v10`, `v16`, plus 88 key-release samples in `samples/rel`; notes in between are pitch-shifted from the nearest sample.
 - Notes get louder and brighter the harder they're played (velocity), and they release naturally.
 - 🦶 **Sustain** pedal: use the toggle button, or **hold Shift** as the pedal (Space is play/pause).
 - 🏛 **Hall** toggles a subtle concert-hall reverb.
@@ -39,8 +39,16 @@ Saved songs are kept in your browser's `localStorage` (key `neonPiano.mySongs`).
 python3 -m http.server 8080   # then open http://localhost:8080
 ```
 
+
+## Look & sound (v3)
+- **Sakura glow** visuals (default) inspired by cinematic piano-visualizer videos: rounded glowing bars, two-pass bloom, star flares + rising glitter/smoke at the hit line, lit keys, ambient glow. Other looks: Neon, Gold, Ice (⚙ menu).
+- **Quality**: Auto / High / Low — Low halves particles and bloom for phones and saves battery.
+- **Sound**: Salamander Grand with 3 velocity layers (soft / medium / loud, crossfaded), key-release samples, stereo spread by pitch, synthetic concert-hall reverb, damper behaviour, sustain pedal (button or hold Shift).
+- **Humanize** (🎭): natural phrase dynamics, chord rolls and tiny timing variations for songs with flat velocities.
+- **⛶ Cinema** mode hides the UI; 📚 hides the song list.
+
 ## Credits
-Piano samples: **Salamander Grand Piano V3** by Alexander Holm, licensed [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/). These are the MP3 conversions from the Tone.js audio repository.
+Piano samples: **Salamander Grand Piano V3** by Alexander Holm, licensed [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/). MP3s from the npm `@audio-samples/piano-mp3-velocity*` and `piano-mp3-release` packages, re-encoded and trimmed.
 
 ## License
 MIT for the code (the samples are CC-BY 3.0, see Credits). The melodies are public-domain or traditional tunes, encoded by hand.
