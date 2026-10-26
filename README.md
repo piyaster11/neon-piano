@@ -40,6 +40,12 @@ python3 -m http.server 8080   # then open http://localhost:8080
 ```
 
 
+## Song library (v4)
+- **35 full-length pieces**, all public-domain compositions, grouped as **Classical**, **Ragtime** and **Traditional**. Includes Clair de Lune, Moonlight Sonata (1st mvt), Für Elise, Gymnopédie No. 1, Rondo alla Turca, Prelude in C, Nocturne Op. 9 No. 2, Minute Waltz, Arabesque No. 1, Träumerei, Maple Leaf Rag, The Entertainer, and carols. There are also short **Simple tunes**.
+- The note data is converted from [Mutopia Project](https://www.mutopiaproject.org) MIDI files (public domain, CC BY or CC BY-SA). Canon in D is an original arrangement. Each song's source and license are listed in [songs/CREDITS.md](songs/CREDITS.md). Songs load on demand from `songs/*.json`.
+- **🔎 Find**: type any title and press Find. You get links that search BitMidi, MuseScore, MidiWorld, FreeMIDI and Google for a free MIDI. Download the `.mid` and drag it onto the piano. It plays at full length and is saved to **My Songs** in your browser's IndexedDB, so long songs fit. Nothing is uploaded.
+- A progress bar and time readout run along the top of the stage. Tap the bar to jump. Only the notes on screen are drawn, so 6-minute pieces with thousands of notes stay at 60 fps.
+
 ## Look & sound (v3)
 - **Sakura glow** visuals (default) inspired by cinematic piano-visualizer videos: rounded glowing bars, two-pass bloom, star flares + rising glitter/smoke at the hit line, lit keys, ambient glow. Other looks: Neon, Gold, Ice (⚙ menu).
 - **Quality**: Auto / High / Low — Low halves particles and bloom for phones and saves battery.

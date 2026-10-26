@@ -1,0 +1,47 @@
+# Song credits & licenses
+
+All built-in pieces are public-domain compositions (composers died before 1930, or traditional). The note data comes from the sources below and keeps its original license. Files in `songs/` are JSON note lists converted from each source MIDI (`[time s, duration s, MIDI note, velocity 0-1, hand 0=right/1=left]`); some tempos were adjusted where the source MIDI used LilyPond's default tempo.
+
+| Song | Composer | Source | Typeset / maintained by | License | Notes |
+|---|---|---|---|---|---|
+| Canon in D | Pachelbel | Arranged for Piyaster Piano from Pachelbel's public-domain Canon: the original ground bass and opening variations, plus new variations, two canon voices in the right hand | Piyaster Piano | MIT (this repo) | Original arrangement |
+| Für Elise (complete) | Beethoven | [Mutopia Project #931](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=931) — edition: Breitkopf & Härtel, 1888 | Stelios Samelis | Public Domain |  |
+| Moonlight Sonata, 1st mvt | Beethoven | [Mutopia Project #276](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=276) — edition: Berners, 1908 (edited by A. Winterberger) | Stewart Holmes | Creative Commons Attribution-ShareAlike 2.5 | Movement 1 only |
+| Clair de Lune | Debussy | [Mutopia Project #1778](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1778) — edition: E. Fromont (1905) | Keith OHara | Public Domain |  |
+| Gymnopédie No. 1 | Satie | [Mutopia Project #37](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=37) — edition: Dover Edition | Evin Robertson | Public Domain |  |
+| Rondo alla Turca (Turkish March) | Mozart | [Mutopia Project #108](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=108) — edition: IMSLP | Rune Zedeler and Chris Sawer | Public Domain |  |
+| Prelude in C, BWV 846 | Bach | [Mutopia Project #5](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=5) — edition: Unknown | Tobias Erbsland | Public Domain |  |
+| Nocturne Op. 9 No. 2 | Chopin | [Mutopia Project #1590](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1590) — edition: G. Schirmer, New York, 1881 | Renato Biolcati Rinaldi | Creative Commons Attribution-ShareAlike 3.0 |  |
+| Minute Waltz, Op. 64 No. 1 | Chopin | [Mutopia Project #483](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=483) — edition: Edition Peters | Magnus Lewis-Smith | Public Domain |  |
+| Arabesque No. 1 | Debussy | [Mutopia Project #1777](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1777) — edition: Durand et Fils (1904) | Keith OHara | Public Domain |  |
+| Träumerei | Schumann | [Mutopia Project #504](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=504) — edition: Leichte Stucke, 1900 | Ying-Chun Liu | Public Domain |  |
+| In the Hall of the Mountain King | Grieg | [Mutopia Project #1888](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1888) — edition: The University Society, 1918 | Coyau | Public Domain |  |
+| Prelude Op. 28 No. 15 "Raindrop" | Chopin | [Mutopia Project #471](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=471) — edition: Edition Peters | Magnus Lewis-Smith | Public Domain |  |
+| Prelude Op. 28 No. 4 in E minor | Chopin | [Mutopia Project #468](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=468) — edition: Peters, 1879 | Magnus Lewis-Smith | Public Domain |  |
+| Impromptu in G-flat, D.899 No. 3 | Schubert | [Mutopia Project #1193](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1193) — edition: Breitkopf & Härtel, 1888 | Ph. Raynaud | Public Domain |  |
+| Consolation No. 3 | Liszt | [Mutopia Project #1647](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1647) — edition: Breitkopf & Härtel, 1850 | Ryan Prince | Creative Commons Attribution 3.0 |  |
+| Sonata Facile K.545, 1st mvt | Mozart | [Mutopia Project #998](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=998) — edition: IMSLP | Alejandro Sierra | Creative Commons Attribution-ShareAlike 3.0 |  |
+| Minuet in G, BWV Anh. 114 | Bach/Petzold | [Mutopia Project #75](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=75) — edition: Bach-Gesellschaft | Allen Garvin | Public Domain |  |
+| Gnossienne No. 1 | Satie | [Mutopia Project #2035](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=2035) — edition: EDITIONS SALABERT, 22, Rue Chauchat. Paris, 1913 | Knute Snortum | Creative Commons Attribution-ShareAlike 4.0 |  |
+| Maple Leaf Rag | Joplin | [Mutopia Project #23](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=23) — edition: Reproduction of original edition (1899) | Chris Sawer | Public Domain |  |
+| The Entertainer | Joplin | [Mutopia Project #263](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=263) — edition: Reproduction of original edition (1902) | Chris Sawer | Public Domain |  |
+| Elite Syncopations | Joplin | [Mutopia Project #1540](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1540) — edition: John Stark & Son | Benjamin Bloomfield | Public Domain |  |
+| Pineapple Rag | Joplin | [Mutopia Project #1899](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1899) — edition: Seminary Music Co., 1908. | Coyau | Public Domain |  |
+| Bethena (Concert Waltz) | Joplin | [Mutopia Project #463](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=463) — edition: Original Manuscript | Magnus Lewis-Smith | Public Domain |  |
+| The Easy Winners | Joplin | [Mutopia Project #352](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=352) — edition: Reproduction of Original Edition | Tom Harke | Public Domain |  |
+| Silent Night | Gruber | [Mutopia Project #1295](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1295) — edition: www.cyberhymnal.org | Steve Dunlop | Public Domain | Hymn tune, repeated as verses with changing dynamics |
+| O Come, All Ye Faithful | Wade | [Mutopia Project #1220](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1220) — edition: www.cyberhymnal.org | Steve Dunlop | Public Domain | Hymn tune, repeated as verses with changing dynamics |
+| Joy to the World | Handel (arr.) | [Mutopia Project #1223](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1223) — edition: www.cyberhymnal.org | Steve Dunlop | Public Domain | Hymn tune, repeated as verses with changing dynamics |
+| Hark! The Herald Angels Sing | Mendelssohn | [Mutopia Project #1261](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1261) — edition: www.cyberhymnal.org | Steve Dunlop | Public Domain | Hymn tune, repeated as verses with changing dynamics |
+| The First Noel | Traditional | [Mutopia Project #1243](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1243) — edition: www.cyberhymnal.org | Steve Dunlop | Public Domain | Hymn tune, repeated as verses with changing dynamics |
+| Greensleeves | Traditional | [Mutopia Project #1247](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1247) — edition: www.cyberhymnal.org | Steve Dunlop | Public Domain | Hymn tune, repeated as verses with changing dynamics |
+| Amazing Grace (New Britain) | Traditional | [Mutopia Project #1283](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1283) — edition: www.cyberhymnal.org | Steve Dunlop | Public Domain | Hymn tune, repeated as verses with changing dynamics |
+| Lo, How a Rose E'er Blooming | Traditional | [Mutopia Project #1240](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1240) — edition: www.cyberhymnal.org | Steve Dunlop | Public Domain | Hymn tune, repeated as verses with changing dynamics |
+| Brother James' Air | Bain | [Mutopia Project #1230](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1230) — edition: www.cyberhymnal.org | Steve Dunlop | Public Domain | Hymn tune, repeated as verses with changing dynamics |
+| Good King Wenceslas | Traditional | [Mutopia Project #905](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=905) — edition: Sheet Music from Rev. Charles Lewis Hutchins, Carols Old and Carols New (Boston: Parish Choir, 1916), Carol #415 | James Kilfiger | Public Domain | Hymn tune, repeated as verses with changing dynamics |
+
+Mutopia Project: free sheet music typeset with LilyPond, https://www.mutopiaproject.org. Licenses: CC BY 3.0 https://creativecommons.org/licenses/by/3.0/ , CC BY-SA 2.5 / 3.0 / 4.0 https://creativecommons.org/licenses/by-sa/4.0/ . The converted JSON of a CC BY-SA piece is shared under the same license.
+
+Short "Simple tunes" in `songs.js` are traditional/public-domain melodies written out by hand for this app (MIT).
+
+Songs you import into **My Songs** stay in your own browser (IndexedDB) and are never uploaded.

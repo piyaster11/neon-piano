@@ -23,3 +23,5 @@ SOFTWARE.
 ---
 Third-party assets: samples/**/*.mp3 are from the Salamander Grand Piano V3 by Alexander Holm,
 licensed under Creative Commons Attribution 3.0 (https://creativecommons.org/licenses/by/3.0/).
+
+songs/*.json: note data converted from Mutopia Project MIDI files. Each file keeps its own license (public domain, CC BY or CC BY-SA); see songs/CREDITS.md.

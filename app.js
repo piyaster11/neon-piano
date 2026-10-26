@@ -74,6 +74,7 @@ const flash = {}; // midi -> {t, col, v} attack flash
 let parts = [];
 const LOOK = () => 2.4; // seconds visible above keys
 const LA = 0.15; // audio scheduling look-ahead (s)
+function lowIdx(t){ const N=song.notes; let lo=0,hi=N.length; while(lo<hi){ const mid=(lo+hi)>>1; if(N[mid].t<t) lo=mid+1; else hi=mid; } return lo; }
 function seek(p){ pos=p; aIdx=0; vIdx=0; const N=song.notes; while(aIdx<N.length&&N[aIdx].t<p-0.02) aIdx++; vIdx=aIdx; }
 function rnd(i){ const x=Math.sin(i*12.9898+78.233)*43758.5453; return x-Math.floor(x); }
 function humanizeNotes(N){ const vs=N.filter(n=>n.v!=null).map(n=>n.v); const varied = vs.length>N.length*0.8 && (Math.max(...vs)-Math.min(...vs))>0.12;
@@ -133,27 +134,55 @@ function parseABC(str){ let L=0.5, bpm=120, key=''; const body=[];
     t += len*spb; }
   return out.length?out:null; }
 const LS='neonPiano.mySongs';
-function getMine(){ try{ return JSON.parse(localStorage.getItem(LS))||[]; }catch(e){ return []; } }
-function setMine(a){ localStorage.setItem(LS,JSON.stringify(a)); }
+// My Songs live in IndexedDB (no 5 MB limit, full-length songs); localStorage is only a fallback
+const DB=(()=>{ let dbp=null; const open=()=>dbp||(dbp=new Promise((res,rej)=>{ if(!window.indexedDB) return rej('no indexedDB'); const r=indexedDB.open('piyaster-piano',1);
+    r.onupgradeneeded=()=>r.result.createObjectStore('songs',{keyPath:'name'}); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }));
+  const tx=(mode,fn)=>open().then(db=>new Promise((res,rej)=>{ const t=db.transaction('songs',mode), q=fn(t.objectStore('songs')); t.oncomplete=()=>res(q&&q.result); t.onerror=t.onabort=()=>rej(t.error); }));
+  return { all:()=>tx('readonly',s=>s.getAll()), put:o=>tx('readwrite',s=>s.put(o)), del:n=>tx('readwrite',s=>s.delete(n)) }; })();
+let MINE=[], useLS=false;
+const lsGet=()=>{ try{ return JSON.parse(localStorage.getItem(LS))||[]; }catch(e){ return []; } };
+function getMine(){ return MINE; }
+async function putMine(o){ o.at=Date.now(); MINE=[...MINE.filter(x=>x.name.toLowerCase()!==o.name.toLowerCase()),o];
+  if(useLS){ localStorage.setItem(LS,JSON.stringify(MINE)); return; } await DB.put(o); }
+async function delMine(name){ MINE=MINE.filter(x=>x.name!==name); if(useLS) localStorage.setItem(LS,JSON.stringify(MINE)); else await DB.del(name); }
+async function initMine(){ try{ MINE=(await DB.all())||[]; const old=lsGet();
+    for(const o of old) if(!MINE.some(x=>x.name===o.name)){ await DB.put(o); MINE.push(o); } if(old.length) localStorage.removeItem(LS); }
+  catch(e){ useLS=true; MINE=lsGet(); }
+  MINE.sort((a,b)=>(a.at||0)-(b.at||0)); renderLib(); window.__mineReady=MINE.length; }
+// built-in full-length library (songs/index.json + one JSON per song, loaded on demand)
+let CATALOG=[]; const songCache={};
+const CATS=['Classical','Ragtime','Traditional'];
+const fmtT=s=>{ s=Math.max(0,Math.round(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
+async function loadCatalog(){ try{ CATALOG=await (await fetch('songs/index.json')).json(); }catch(e){ CATALOG=[]; } renderLib(); }
+async function catNotes(c){ if(!songCache[c.id]){ const j=await (await fetch('songs/'+c.id+'.json')).json(); songCache[c.id]=j.notes; }
+  return songCache[c.id].map(a=>({t:a[0],d:a[1],m:a[2],v:a[3],h:a[4],hue:a[4]?HUE_LH:HUE_RH})); }
 function norm(s){ return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim(); }
 function lev(a,b){ const d=Array.from({length:a.length+1},(_,i)=>[i]); for(let j=1;j<=b.length;j++)d[0][j]=j;
   for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]==b[j-1]?0:1)); return d[a.length][b.length]; }
 function findSong(q){ q = norm(q); if(!q) return null; let best=null, bs=0;
-  for(const s of [...getMine().map(o=>({...o,alias:[],mine:true})),...SONGS]){ for(const cand of [s.name,...s.alias].map(norm)){
-    let sc = cand.includes(q)||q.includes(cand) ? 1 : 0;
-    if(!sc){ const qw=q.split(' '), cw=cand.split(' '); const hits=qw.filter(w=>cw.some(c=>lev(w,c)<=Math.max(1,Math.floor(c.length/4)))).length; sc = 0.9*hits/Math.max(qw.length,1); }
-    if(!sc) sc = 1 - lev(q,cand)/Math.max(q.length,cand.length);
+  for(const s of [...getMine().map(o=>({...o,alias:[],mine:true})),...CATALOG.map(c=>({...c,alias:[c.name.replace(/\(.*?\)/g,''),c.composer+' '+c.name],cat:c})),...SONGS]){ for(const cand of [s.name,...s.alias].map(norm)){
+    if(cand.length<3) continue; let sc = (q.length>=3&&cand.includes(q))||(' '+q+' ').includes(' '+cand+' ') ? 1 : 0;
+    if(!sc){ const STOP=new Set(['a','an','the','of','in','it','no','op','to','and','e','my','me','you','i','be','is','on','for','go','love']); const qw=q.split(' ').filter(w=>!STOP.has(w)), cw=cand.split(' ');
+      const hits=qw.filter(w=>cw.some(c=>w===c||(w.length>=4&&c.length>=4&&lev(w,c)<=Math.floor(c.length/4)))).length; sc = qw.length? 0.9*hits/qw.length : 0; }
+    if(!sc && q.length>=5) sc = 1 - lev(q,cand)/Math.max(q.length,cand.length);
     if(sc>bs){bs=sc;best=s;} } }
-  return bs>=0.55?best:null; }
-function load(name, notes, mode='hands'){ notes.sort((a,b)=>a.t-b.t); humanizeNotes(notes); song={name,notes,mode}; legend(); seek(-1.2); layout(); }
+  return bs>=0.6?best:null; }
+function load(name, notes, mode='hands'){ notes.sort((a,b)=>a.t-b.t); humanizeNotes(notes); song={name,notes,mode,maxD:notes.reduce((a,n)=>Math.max(a,n.d),0),end:notes.reduce((a,n)=>Math.max(a,n.t+n.d),0)}; legend(); seek(-1.2); layout(); }
 function msg(t){ $('msg').innerHTML = t; }
-function fromInput(){ const q=$('song').value.trim(); if(!q){ msg('Type a song name or some notes first ✨'); return false; }
+async function fromInput(){ const q=$('song').value.trim(); if(!q){ msg('Type a song name or some notes first ✨'); return false; }
   let n = parseHands(q); if(n){ load('Your notes (RH+LH)',n,'hands'); msg('Playing your two-hand notes 🎹 Press 💾 Save to keep them.'); return true; }
   n = parseTokens(q,100); if(n){ n.forEach(x=>{x.h=0;x.hue=HUE_RH;}); load('Your notes',n); msg('Playing your notes 🎹 Press 💾 Save to keep them in My Songs.'); return true; }
   if(/[A-Ga-g]/.test(q) && (/^X:|\nK:|^[\^_=A-Ga-gzZ,'\d\/\s|]+$/.test(q)) && !/\s[a-z]{3,}/i.test(' '+q.replace(/^[A-Za-z]:.*$/gm,''))){
     n = parseABC(q); if(n){ load('ABC tune',n); msg('Playing ABC notation 🎼'); return true; } }
-  const s = findSong(q); if(s){ load(s.name, s.mine? s.notes.map(n=>({...n})) : builtIn(s), s.mine?(s.mode||'hands'):'hands'); msg(`Now playing: <b>${s.name.replace(/</g,'&lt;')}</b>${s.mine?' (My Songs)':''}`); return true; }
-  msg(`Sorry, I don't have “${q.replace(/</g,'&lt;')}” yet 🎵 Try: ${SONGS.slice(0,6).map(s=>s.name).join(', ')}… or type notes like <code>C4 D4 E4:2</code>, or drop in your own MIDI file and 💾 Save it to My Songs.`); return false; }
+  const s = findSong(q);
+  if(s && s.cat){ msg(`Loading <b>${s.name}</b>…`); try{ const n=await catNotes(s.cat); load(s.name,n,'hands'); msg(`Now playing: <b>${s.name}</b> · ${s.composer} · ${fmtT(s.dur)} <span class="dim">(${s.lic==='PD'?'public domain':s.lic==='MIT'?'original arrangement':s.lic+' — see credits'})</span>`); return true; }catch(e){ msg('Could not load that song: '+e); return false; } }
+  if(s){ load(s.name, s.mine? s.notes.map(n=>({...n})) : builtIn(s), s.mine?(s.mode||'hands'):'hands'); msg(`Now playing: <b>${s.name.replace(/</g,'&lt;')}</b>${s.mine?' (My Songs)':''}`); return true; }
+  msg(`I don't have “${esc(q)}” built in 🎵 ${findLinks(q)}`); return false; }
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const FIND_SITES=[['BitMidi','https://bitmidi.com/search?q='],['MuseScore','https://musescore.com/sheetmusic?text='],['MidiWorld','https://www.midiworld.com/search/?q='],['FreeMIDI','https://freemidi.org/search?q='],['Google','https://www.google.com/search?q=',' piano midi download']];
+function findLinks(q){ const e=encodeURIComponent;
+  return `Find a free MIDI of it: ${FIND_SITES.map(([n,u,x])=>`<a class="find" target="_blank" rel="noopener" href="${u}${e(q+(x||''))}">🔎 ${n}</a>`).join(' ')}<br><span class="dim">Download the .mid file, then drag it onto the piano (or tap 🎵 MIDI). It plays at full length and is saved in 📚 My Songs on this device.</span>`; }
+$('find').onclick=()=>{ const q=$('song').value.trim(); if(!q){ msg('Type a song title (any song — e.g. a movie or game theme) first, then press 🔎 Find.'); $('song').focus(); return; } msg(`Search for “${esc(q)}”: ${findLinks(q)}`); };
 
 // ---------- MIDI file ----------
 function parseMidi(buf){ const d=new DataView(buf); let p=0; const str=n=>{let s='';for(let i=0;i<n;i++)s+=String.fromCharCode(d.getUint8(p+i));p+=n;return s;};
@@ -178,8 +207,11 @@ function parseMidi(buf){ const d=new DataView(buf); let p=0; const str=n=>{let s
   else notes.forEach(n=>n.hue=ids.length===1?HUE_RH:TRACK_HUES[n.h%TRACK_HUES.length]);
   notes.parts=ids.length; return notes; }
 $('file').onchange = async e => { const f=e.target.files[0]; if(!f) return; try{ const n=parseMidi(await f.arrayBuffer()); if(!n.length) throw 'No notes found';
-  load(f.name,n,n.mode||'tracks'); msg(`Loaded MIDI: <b>${f.name}</b> (${n.length} notes, ${n.parts} part${n.parts>1?'s':''})`); start(); saveCurrent(f.name.replace(/\.midi?$/i,'')); } catch(err){ msg('Could not read that MIDI file: '+err); } e.target.value=''; };
+  importMidi(f.name,n); } catch(err){ msg('Could not read that MIDI file: '+err); } e.target.value=''; };
 
+async function importMidi(fname,n){ const name=fname.replace(/\.midi?$/i,'').replace(/[_-]+/g,' ').trim(); load(name,n,n.mode||'tracks'); start();
+  const dur=n.reduce((a,x)=>Math.max(a,x.t+x.d),0); await saveCurrent(name,true);
+  msg(`Loaded <b>${esc(name)}</b> — ${n.length} notes, ${fmtT(dur)}, ${n.parts} part${n.parts>1?'s':''}. Saved to 📚 My Songs.`); }
 function legend(){ const L=$('legend'); if(!L) return; L.innerHTML=''; if(!song.notes.length) return;
   if(song.mode==='hands'){ [['rh','Right hand'],['lh','Left hand']].forEach(([k,lab])=>{ if(!song.notes.some(n=>(n.h?'lh':'rh')===k)) return;
       const b=document.createElement('button'); b.className='hand'+(muted[k]?' off':''); b.style.setProperty('--c',css(k==='rh'?T().rh:T().lh,0));
@@ -188,24 +220,29 @@ function legend(){ const L=$('legend'); if(!L) return; L.innerHTML=''; if(!song.
     [['rh','Track 1'],['lh','Other tracks']].forEach(([k,lab])=>{ const b=document.createElement('button'); b.className='hand'+(muted[k]?' off':''); b.textContent=(muted[k]?'🔇 ':'🔊 ')+lab; b.onclick=()=>{muted[k]=!muted[k];legend();}; L.appendChild(b); }); } }
 const lib=$('lib');
 function renderLib(){ lib.innerHTML=''; const mine=getMine();
-  if(mine.length){ const h=document.createElement('b'); h.textContent='My Songs'; lib.appendChild(h);
-    mine.forEach(s=>{ const b=document.createElement('span'); b.className='mine'; b.textContent=s.name; const x=document.createElement('i'); x.textContent='✕'; x.title='Delete';
-      x.onclick=e=>{ e.stopPropagation(); if(confirm('Delete “'+s.name+'” from My Songs?')){ setMine(getMine().filter(o=>o.name!==s.name)); renderLib(); } };
-      b.appendChild(x); b.onclick=()=>{ $('song').value=s.name; $('play').click(); }; lib.appendChild(b); });
-    const h2=document.createElement('b'); h2.textContent='Built-in (public domain)'; lib.appendChild(h2); }
-  SONGS.forEach(s=>{ const b=document.createElement('span'); b.textContent=s.name; b.onclick=()=>{ $('song').value=s.name; $('play').click(); }; lib.appendChild(b); }); }
-function saveCurrent(def){ if(!song.notes.length){ msg('Load a MIDI file or type notes first, then press 💾 Save.'); return; }
-  const name=(prompt('Name this song for My Songs:', def||song.name)||'').trim(); if(!name) return;
+  const head=t=>{ const h=document.createElement('b'); h.textContent=t; lib.appendChild(h); };
+  const chip=(label,meta,fn,cls)=>{ const b=document.createElement('span'); if(cls) b.className=cls; b.textContent=label; if(meta){ const m=document.createElement('small'); m.textContent=meta; b.appendChild(m); } b.onclick=fn; lib.appendChild(b); return b; };
+  const playName=n=>()=>{ $('song').value=n; $('play').click(); };
+  head('📚 My Songs'+(mine.length?'':' — drop a .mid file here, or use 🔎 Find to get one'));
+  mine.forEach(s=>{ const dur=s.notes.reduce((a,x)=>Math.max(a,x.t+x.d),0); const b=chip(s.name,fmtT(dur),playName(s.name),'mine');
+    const x=document.createElement('i'); x.textContent='✕'; x.title='Delete';
+    x.onclick=e=>{ e.stopPropagation(); if(confirm('Delete “'+s.name+'” from My Songs?')) delMine(s.name).then(renderLib); }; b.appendChild(x); });
+  for(const c of CATS){ const L=CATALOG.filter(x=>x.cat===c); if(!L.length) continue; head(c);
+    L.forEach(x=>chip(x.name,fmtT(x.dur),playName(x.name))); }
+  head('Simple tunes'); SONGS.forEach(s=>chip(s.name,'',playName(s.name)));
+  const cr=document.createElement('a'); cr.href='songs/CREDITS.md'; cr.target='_blank'; cr.className='credits'; cr.textContent='Song sources & licenses'; lib.appendChild(cr); }
+async function saveCurrent(def,quiet){ if(!song.notes.length){ msg('Load a MIDI file or type notes first, then press 💾 Save.'); return; }
+  const name=(quiet? (def||song.name) : (prompt('Name this song for My Songs:', def||song.name)||'')).trim(); if(!name) return;
   const notes=song.notes.map(n=>({m:n.m,t:+n.t.toFixed(3),d:+n.d.toFixed(3),...(n.v!=null?{v:+n.v.toFixed(2)}:{}),h:n.h||0,hue:n.hue??HUE_RH}));
-  try{ setMine([...getMine().filter(o=>o.name.toLowerCase()!==name.toLowerCase()),{name,notes,mode:song.mode}]); song.name=name; renderLib(); msg(`Saved <b>${name.replace(/</g,'&lt;')}</b> to My Songs 💾`); }
-  catch(e){ msg('Could not save (browser storage full?)'); } }
+  try{ await putMine({name,notes,mode:song.mode}); song.name=name; renderLib(); if(!quiet) msg(`Saved <b>${esc(name)}</b> to My Songs 💾`); }
+  catch(e){ msg('Could not save (browser storage full?) '+e); } }
 $('save').onclick=()=>saveCurrent();
-renderLib();
+renderLib(); initMine(); loadCatalog();
 // drag & drop MIDI anywhere
 addEventListener('dragover',e=>{e.preventDefault();document.body.classList.add('drag');});
 addEventListener('dragleave',e=>{ if(!e.relatedTarget) document.body.classList.remove('drag'); });
 addEventListener('drop',async e=>{ e.preventDefault(); document.body.classList.remove('drag'); const f=e.dataTransfer.files[0]; if(!f) return;
-  try{ const n=parseMidi(await f.arrayBuffer()); if(!n.length) throw 'No notes found'; load(f.name.replace(/\.midi?$/i,''),n,n.mode||'tracks'); start(); saveCurrent(); }catch(err){ msg('Could not read that MIDI file: '+err); } });
+  try{ const n=parseMidi(await f.arrayBuffer()); if(!n.length) throw 'No notes found'; importMidi(f.name,n); }catch(err){ msg('Could not read that MIDI file: '+err); } });
 // mouse/touch on keys (held until release, like a real key)
 function keyAt(x,y){ if(y<H-kbH) return null; const yy=y-(H-kbH);
   if(yy<kbH*0.63) for(const m in keys){ const k=keys[m]; if(k.black&&x>=k.x&&x<=k.x+k.w) return +m; }
@@ -225,7 +262,7 @@ addEventListener('keyup',e=>{ const k=e.key.toLowerCase(); const m=down[k]; if(m
 
 // ---------- controls ----------
 function start(){ PA.unlock(); playing=true; last=performance.now(); $('pause').textContent='⏸'; if(innerWidth<900) document.body.classList.add('hide-lib'); }
-$('play').onclick = () => { if(fromInput()) start(); };
+$('play').onclick = async () => { PA.unlock(); if(await fromInput()) start(); };
 $('song').onkeydown = e => { if(e.key==='Enter'){ e.preventDefault(); $('play').click(); } };
 $('pause').onclick = () => { if(!song.notes.length) return; if(playing){ playing=false; $('pause').textContent='▶'; } else start(); };
 $('stop').onclick = () => { PA.allOff(); playing=false; seek(-1.2); $('pause').textContent='⏸'; };
@@ -241,11 +278,11 @@ function frame(now){ const dt=Math.min(0.05,(now-last)/1000)||0.016; last=now; c
     while(aIdx<N.length && N[aIdx].t+(prefs.humanize?(N[aIdx].ht||0):0) <= pos+LA*tempo){ const n=N[aIdx++]; if(isMuted(n)) continue;
       const ht=prefs.humanize?(n.ht||0):0; const when=PA.time+Math.max(0,(n.t+ht-pos)/tempo); PA.noteOn(n.m, velOf(n), when, n.d/tempo); }
     while(vIdx<N.length && N[vIdx].t<=pos){ const n=N[vIdx++]; if(!isMuted(n)) fx(n.m, colOf(n), velOf(n)); }
-    if(vIdx>=N.length&&N.length&&pos>N[N.length-1].t+N[N.length-1].d+1.5){ playing=false; msg(`Finished <b>${song.name}</b> 🎉 Press Play to hear it again.`); seek(-1.2); } }
+    if(vIdx>=N.length&&N.length&&pos>(song.end||0)+1.5){ window.__finished=(window.__finished||0)+1; window.__finishedAt=pos; playing=false; msg(`Finished <b>${song.name}</b> 🎉 Press Play to hear it again.`); seek(-1.2); } }
   const top=H-kbH, look=LOOK(), pps=top/look, tnow=performance.now();
   // active (sounding) notes -> lit keys
-  const active={};
-  for(const n of N){ if(n.t>pos) break; if(n.t+n.d<pos||isMuted(n)) continue; const v=velOf(n); if(!active[n.m]||active[n.m].v<v) active[n.m]={col:colOf(n),v,age:pos-n.t}; }
+  const active={}; const i0=lowIdx(pos-(song.maxD||0)-0.1); window.__scan=0;
+  for(let i=i0;i<N.length;i++){ const n=N[i]; window.__scan++; if(n.t>pos) break; if(n.t+n.d<pos||isMuted(n)) continue; const v=velOf(n); if(!active[n.m]||active[n.m].v<v) active[n.m]={col:colOf(n),v,age:pos-n.t}; }
   for(const m in held) active[m]={col:held[m].col,v:0.75,age:(tnow-held[m].t)/1000};
   let activity=0; for(const m in active) activity+=active[m].v; activity=Math.min(1,activity/3);
   // ---- background
@@ -260,7 +297,7 @@ function frame(now){ const dt=Math.min(0.05,(now-last)/1000)||0.016; last=now; c
   // glow buffer
   gx.setTransform(1,0,0,1,0,0); gx.globalCompositeOperation='source-over'; gx.clearRect(0,0,glow.width,glow.height); gx.setTransform(1/GS,0,0,1/GS,0,0); gx.globalCompositeOperation='lighter';
   // ---- falling note bars
-  for(const n of N){ if(n.t>pos+look) break; if(n.t+n.d<pos-0.05) continue; const k=keys[n.m]; if(!k) continue;
+  for(let i=i0;i<N.length;i++){ const n=N[i]; if(n.t>pos+look) break; if(n.t+n.d<pos-0.05) continue; const k=keys[n.m]; if(!k) continue;
     const yb=Math.min(top, top-(n.t-pos)*pps), yt=top-(n.t+n.d-pos)*pps; if(yb-yt<1) continue;
     const c=colOf(n), mu=isMuted(n), bw=k.black?k.w*0.86:k.w*0.62, x=k.cx-bw/2, r=Math.min(bw/2,3.5);
     const a=mu?0.18:1, sounding=n.t<=pos;
@@ -315,12 +352,15 @@ function frame(now){ const dt=Math.min(0.05,(now-last)/1000)||0.016; last=now; c
   ctx.globalAlpha=hi?0.75:0.9; ctx.drawImage(glow,0,0,W,H); ctx.globalAlpha=1;
   ctx.globalCompositeOperation='source-over';
   // ---- text
-  ctx.textAlign='left'; if(song.name){ ctx.fillStyle='rgba(255,230,240,.55)'; ctx.font='600 13px system-ui'; ctx.fillText('♪ '+song.name+(playing?'':'  (paused)'),10,20); }
+  ctx.textAlign='left'; if(song.name){ ctx.fillStyle='rgba(255,230,240,.55)'; ctx.font='600 13px system-ui'; ctx.fillText('♪ '+song.name+'   '+fmtT(Math.max(0,pos))+' / '+fmtT(song.end||0)+(playing?'':'  (paused)'),10,20);
+    const pr=Math.max(0,Math.min(1,pos/(song.end||1))); ctx.fillStyle='rgba(255,255,255,.08)'; ctx.fillRect(0,0,W,3); ctx.fillStyle=css(th.line,0,0.85); ctx.fillRect(0,0,W*pr,3); }
   ctx.textAlign='right'; ctx.font='italic 700 15px "Segoe Script","Brush Script MT",cursive,system-ui'; ctx.fillStyle=css(th.line,0,0.5); ctx.fillText('Piyaster Piano',W-12,22);
   requestAnimationFrame(frame); }
 layout(); requestAnimationFrame(t=>{last=t;frame(t);});
-window.__piano={get fps(){return 0;}};
+window.__piano={ get pos(){return pos;}, get playing(){return playing;}, get name(){return song.name;}, get end(){return song.end||0;}, get notes(){return song.notes.length;}, get tempo(){return tempo;}, set tempo(v){tempo=v;}, seek:p=>{PA.allOff(); seek(p);} };
+// tap/drag the thin bar at the top of the stage to jump within the song
+cv.addEventListener('pointerdown',e=>{ const r=cv.getBoundingClientRect(); if(e.clientY-r.top>18||!song.notes.length) return; e.stopImmediatePropagation(); PA.allOff(); seek(Math.max(0,(e.clientX-r.left)/r.width*(song.end||0))); },true);
 // demo/autoplay via URL: ?song=fur+elise&seek=3
-const qp=new URLSearchParams(location.search); if(qp.get('song')){ $('song').value=qp.get('song'); if(fromInput()){ seek(+(qp.get('seek')||0)); start(); } }
+const qp=new URLSearchParams(location.search); if(qp.get('song')){ $('song').value=qp.get('song'); (async()=>{ if(!CATALOG.length) await loadCatalog(); if(await fromInput()){ seek(+(qp.get('seek')||0)); start(); } })(); }
 if(qp.get('hidelib')) document.body.classList.add('hide-lib');
 })();

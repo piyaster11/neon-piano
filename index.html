@@ -21,10 +21,11 @@ input[type=range]{width:90px;accent-color:#ff8fbf}
 #msg{font-size:13px;color:#ffc9de;padding:3px 10px;min-height:20px;background:rgba(14,6,12,.7);z-index:2}
 #stage{position:relative;flex:1;min-height:0}
 canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
-#lib{display:flex;flex-wrap:wrap;gap:6px;padding:0 10px 6px;background:rgba(14,6,12,.7);z-index:2;max-height:30vh;overflow:auto}
+#lib{display:flex;flex-wrap:wrap;gap:6px;padding:0 10px 6px;background:rgba(14,6,12,.7);z-index:2;max-height:34vh;overflow:auto}
+#msg a.find{display:inline-block;margin:3px 2px;padding:4px 9px;border-radius:999px;border:1px solid #ff8fbf;color:#fff;text-decoration:none;background:#2c1020;font-size:12px}#msg a.find:hover{background:#4a1631}#msg .dim{opacity:.7;font-size:12px}
 body.hide-lib #lib{display:none}
 #lib span{font-size:12px;padding:3px 8px;border-radius:999px;border:1px solid #4a1c33;cursor:pointer;color:#f3c6d9}
-#lib span.mine{border-color:#c88bff;color:#e6cbff}#lib span i{font-style:normal;margin-left:6px;opacity:.7}#lib span i:hover{color:#f55;opacity:1}#lib b{font-size:12px;color:#ff8fbf;width:100%}
+#lib span.mine{border-color:#c88bff;color:#e6cbff}#lib span i{font-style:normal;margin-left:6px;opacity:.7}#lib span i:hover{color:#f55;opacity:1}#lib b{font-size:12px;color:#ff8fbf;width:100%;margin-top:4px}#lib small{margin-left:6px;opacity:.55;font-size:10px}#lib .credits{font-size:11px;color:#c99;width:100%;margin-top:4px}
 #lib span:hover{border-color:#ff8fbf;color:#fff}
 body.drag #stage{outline:3px dashed #ff8fbf;outline-offset:-8px}
 #file{display:none}
@@ -38,8 +39,9 @@ body.cinema #fsx{display:block}#fsx{display:none;position:fixed;top:8px;right:8p
 <div id="app">
 <header>
 <h1>✦ Piyaster Piano</h1>
-<input id="song" type="text" placeholder="Song name, or notes: RH: E5 D5 C5 LH: C3+E3+G3:3" autocomplete="off">
+<input id="song" type="text" placeholder="Song name (e.g. Clair de Lune), any title to 🔎 Find, or notes" autocomplete="off">
 <button id="play" class="primary">▶ Play</button>
+<button id="find" title="Find a free MIDI of any song online">🔎<span class="wide"> Find</span></button>
 <button id="pause" title="Pause (Space)">⏸</button>
 <button id="stop" title="Stop">⏹</button>
 <label class="btn" for="file" title="Load a MIDI file">🎵<span class="wide"> MIDI</span></label><input id="file" type="file" accept=".mid,.midi">
@@ -57,7 +59,7 @@ body.cinema #fsx{display:block}#fsx{display:none;position:fixed;top:8px;right:8p
 <label>Tempo <input id="tempo" type="range" min="0.4" max="2" step="0.05" value="1"><span id="tv">1.0×</span></label>
 <label>Vol <input id="vol" type="range" min="0" max="1" step="0.01" value="0.7"></label>
 </div>
-<div id="msg">Type a song name and press Play, pick one below, or play the keys (A W S E D F T G Y H U J K… · Shift = pedal).</div>
+<div id="msg">Type a song name and press Play, pick one below, or play the keys (A W S E D F T G Y H U J K… · Shift = pedal). Want another song? Type its title and press 🔎 Find.</div>
 <div id="loading">🎹 Loading grand piano…</div>
 <div id="legend"></div>
 <div id="lib"></div>
