@@ -40,6 +40,12 @@ python3 -m http.server 8080   # then open http://localhost:8080
 ```
 
 
+## Christmas & Playlist (v5)
+- **🎄 Christmas** category with **31 full-length carols**, two hands: Jingle Bells (full), Silent Night, Deck the Halls, We Wish You a Merry Christmas, O Holy Night, Joy to the World, Carol of the Bells, O Come All Ye Faithful, Hark the Herald, The First Noel, O Christmas Tree, God Rest Ye Merry Gentlemen, Away in a Manger, Angels We Have Heard on High, We Three Kings, O Little Town of Bethlehem, It Came Upon the Midnight Clear, What Child Is This, Jolly Old St. Nicholas, Up on the Housetop, Ding Dong Merrily, Good King Wenceslas, Coventry Carol, The Holly and the Ivy, O Come O Come Emmanuel, Angels from the Realms of Glory, In the Bleak Midwinter, Once in Royal David's City, From Heaven Above, Lo How a Rose, and Tchaikovsky's March of the Wooden Soldiers.
+- Sources: Mutopia (PD), Wikimedia Commons (CC0 / PD / CC BY 3.0 settings, mostly by Peter Gerloff "Rabanus Flavus"), PD 4-part ABC settings by Douglas D. Anderson, and an original arrangement of Leontovych's *Shchedryk* (Carol of the Bells). Full list in [songs/CREDITS.md](songs/CREDITS.md).
+- **Christmas look** (⚙ → Look → Christmas 🎄): red and green bars, gold light, falling snow. It's suggested when a Christmas song starts.
+- **🎶 Playlist** panel on the right (a slide-in drawer on phones; hidden in cinema mode). Tap **+** on any song to queue it, drag ⠿ to reorder, ✕ to remove. Use **▶ Play all** for Christmas, Classical, Ragtime, Traditional, Simple or My Songs. It auto-advances with a short gap. It also has ⏮ ⏭, 🔀 shuffle, 🔁/🔂 repeat (off / all / one) and highlights the song that's playing. **💾 Save** stores named playlists in your browser (IndexedDB). The current queue is remembered too.
+
 ## Song library (v4)
 - **35 full-length pieces**, all public-domain compositions, grouped as **Classical**, **Ragtime** and **Traditional**. Includes Clair de Lune, Moonlight Sonata (1st mvt), Für Elise, Gymnopédie No. 1, Rondo alla Turca, Prelude in C, Nocturne Op. 9 No. 2, Minute Waltz, Arabesque No. 1, Träumerei, Maple Leaf Rag, The Entertainer, and carols. There are also short **Simple tunes**.
 - The note data is converted from [Mutopia Project](https://www.mutopiaproject.org) MIDI files (public domain, CC BY or CC BY-SA). Canon in D is an original arrangement. Each song's source and license are listed in [songs/CREDITS.md](songs/CREDITS.md). Songs load on demand from `songs/*.json`.
@@ -47,7 +53,7 @@ python3 -m http.server 8080   # then open http://localhost:8080
 - A progress bar and time readout run along the top of the stage. Tap the bar to jump. Only the notes on screen are drawn, so 6-minute pieces with thousands of notes stay at 60 fps.
 
 ## Look & sound (v3)
-- **Sakura glow** visuals (default) inspired by cinematic piano-visualizer videos: rounded glowing bars, two-pass bloom, star flares + rising glitter/smoke at the hit line, lit keys, ambient glow. Other looks: Neon, Gold, Ice (⚙ menu).
+- **Sakura glow** visuals (default) inspired by cinematic piano-visualizer videos: rounded glowing bars, two-pass bloom, star flares + rising glitter/smoke at the hit line, lit keys, ambient glow. Other looks: Neon, Gold, Ice, Christmas (⚙ menu).
 - **Quality**: Auto / High / Low — Low halves particles and bloom for phones and saves battery.
 - **Sound**: Salamander Grand with 3 velocity layers (soft / medium / loud, crossfaded), key-release samples, stereo spread by pitch, synthetic concert-hall reverb, damper behaviour, sustain pedal (button or hold Shift).
 - **Humanize** (🎭): natural phrase dynamics, chord rolls and tiny timing variations for songs with flat velocities.

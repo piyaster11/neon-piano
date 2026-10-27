@@ -32,6 +32,29 @@ body.drag #stage{outline:3px dashed #ff8fbf;outline-offset:-8px}
 #loading{position:fixed;left:50%;transform:translateX(-50%);top:60px;z-index:5;font-size:13px;padding:7px 12px;border-radius:10px;background:#1c0a14;border:1px solid #ff8fbf;box-shadow:0 0 14px #ff8fbf66;transition:opacity .6s}#loading.hide{opacity:0;pointer-events:none}
 #legend{display:flex;flex-wrap:wrap;gap:6px;padding:0 10px 6px;background:rgba(14,6,12,.7);z-index:2}#legend:empty{display:none}
 .hand{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--c,#ff8fbf);background:#12060d;color:#fff;box-shadow:0 0 8px var(--c,#ff8fbf);display:inline-flex;align-items:center;gap:6px}.hand i{width:10px;height:10px;border-radius:3px;background:var(--c);box-shadow:0 0 6px var(--c)}.hand.off{opacity:.45;box-shadow:none}
+#main{flex:1;min-height:0;display:flex;position:relative}#main #stage{flex:1;min-width:0}
+#pl{display:none;flex-direction:column;gap:6px;width:280px;flex:0 0 280px;padding:8px;background:rgba(14,6,12,.94);border-left:1px solid #3a1426;overflow:auto;z-index:3}
+body.pl-open #pl{display:flex}
+.plh{display:flex;align-items:center;gap:6px}.plh b{color:#ff8fbf;font-size:14px}.plh small{opacity:.6;font-size:11px;flex:1}#plx{padding:3px 8px}
+#plnow{font-size:12px;color:#ffd9e8;min-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#plnow .dim{opacity:.6}
+.plc{display:flex;gap:4px}.plc button{padding:5px 8px}.plc .primary{flex:1}
+#plpresets{display:flex;flex-wrap:wrap;gap:4px;font-size:11px}#plpresets .lbl{opacity:.7;width:100%}
+#plpresets span[data-c],#plsaved span{padding:3px 8px;border-radius:999px;border:1px solid #4a1c33;cursor:pointer;color:#f3c6d9;font-size:11px}#plpresets span[data-c]:hover,#plsaved span:hover{border-color:#ff8fbf;color:#fff}
+#pl>*{flex-shrink:0}#pl>#plq{flex:1 1 0;min-height:90px;overflow:auto}
+#plq{list-style:none;margin:0;padding:0 2px 0 0;display:flex;flex-direction:column;gap:2px;counter-reset:q}#plq li{flex-shrink:0}
+#plq li{display:flex;align-items:center;gap:6px;font-size:12px;padding:4px 6px;border-radius:7px;background:#160810;border:1px solid transparent;counter-increment:q}
+#plq li::before{content:counter(q);opacity:.4;font-size:10px;min-width:14px;text-align:right}
+#plq li .nm{flex:1;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#plq li small{opacity:.55;font-size:10px}
+#plq li i{font-style:normal;opacity:.5;cursor:pointer}#plq li i:hover{color:#f55;opacity:1}
+#plq .grip{cursor:grab;opacity:.55;touch-action:none;padding:0 2px;user-select:none}
+#plq li.now{border-color:#ff8fbf;background:#2c1020;box-shadow:0 0 10px #ff8fbf55}#plq li.now .nm{color:#fff;font-weight:600}
+#plq li.dragging{opacity:.5}#plq li.drop{box-shadow:0 -2px 0 #ff8fbf}#plq.drop-end li:last-child{box-shadow:0 2px 0 #ff8fbf}
+.pls{display:flex;gap:4px}.pls input[type=text]{flex:1;min-width:0;font-size:12px;padding:5px 8px}.pls button{padding:5px 8px}
+#plsaved{display:flex;flex-wrap:wrap;gap:4px}#plsaved i{font-style:normal;margin-left:5px;opacity:.6}#plsaved i:hover{color:#f55;opacity:1}#plsaved .dim{opacity:.5;font-size:11px}
+#lib span em.add{font-style:normal;margin-right:5px;padding:0 4px;border-radius:5px;background:#2c1020;color:#ff8fbf;font-weight:700}#lib span em.add:hover{background:#ff8fbf;color:#2a0614}#lib span em.add.ok{background:#5c5;color:#031}
+#lib span.xm{border-color:#5a2a1c}
+body.cinema #pl{display:none!important}
+@media (max-width:899px){#pl{display:flex;position:fixed;top:0;right:0;bottom:0;width:min(86vw,320px);transform:translateX(105%);transition:transform .25s ease;box-shadow:-8px 0 30px #000a;z-index:7}body.pl-open #pl{transform:none}}
 body.cinema header,body.cinema #settings,body.cinema #msg,body.cinema #lib,body.cinema #legend{display:none}
 body.cinema #fsx{display:block}#fsx{display:none;position:fixed;top:8px;right:8px;z-index:6;opacity:.5}
 @media (max-width:640px){h1{font-size:14px}header{gap:5px;padding:5px}button,.btn,select{padding:6px 8px;font-size:12px}input[type=range]{width:70px}#lib{max-height:56px}.wide{display:none}}
@@ -47,6 +70,7 @@ body.cinema #fsx{display:block}#fsx{display:none;position:fixed;top:8px;right:8p
 <label class="btn" for="file" title="Load a MIDI file">🎵<span class="wide"> MIDI</span></label><input id="file" type="file" accept=".mid,.midi">
 <button id="save" title="Save the loaded song to My Songs">💾<span class="wide"> Save</span></button>
 <button id="libbtn" title="Show/hide song list">📚</button>
+<button id="plbtn" title="Playlist">🎶<span class="wide"> Playlist</span></button>
 <button id="cfg" title="Sound & visual settings">⚙</button>
 <button id="fs" title="Cinema / fullscreen">⛶</button>
 </header>
@@ -54,7 +78,7 @@ body.cinema #fsx{display:block}#fsx{display:none;position:fixed;top:8px;right:8p
 <button id="sus" title="Sustain pedal (toggle) — or hold Shift">🦶 Sustain</button>
 <button id="rev" title="Concert hall reverb">🏛 Hall</button>
 <button id="hum" title="Humanized velocity & timing">🎭 Humanize</button>
-<label>Look <select id="theme"><option value="sakura">Sakura glow</option><option value="neon">Neon</option><option value="gold">Gold</option><option value="ice">Ice</option></select></label>
+<label>Look <select id="theme"><option value="sakura">Sakura glow</option><option value="neon">Neon</option><option value="gold">Gold</option><option value="ice">Ice</option><option value="xmas">Christmas 🎄</option></select></label>
 <label>Quality <select id="quality"><option value="auto">Auto</option><option value="high">High</option><option value="low">Low (battery)</option></select></label>
 <label>Tempo <input id="tempo" type="range" min="0.4" max="2" step="0.05" value="1"><span id="tv">1.0×</span></label>
 <label>Vol <input id="vol" type="range" min="0" max="1" step="0.01" value="0.7"></label>
@@ -63,7 +87,18 @@ body.cinema #fsx{display:block}#fsx{display:none;position:fixed;top:8px;right:8p
 <div id="loading">🎹 Loading grand piano…</div>
 <div id="legend"></div>
 <div id="lib"></div>
+<div id="main">
 <div id="stage"><canvas id="cv"></canvas></div>
+<aside id="pl">
+ <div class="plh"><b>🎶 Playlist</b><small id="plcount"></small><button id="plx" title="Close">✕</button></div>
+ <div id="plnow"></div>
+ <div class="plc"><button id="plprev" title="Previous">⏮</button><button id="plplay" class="primary" title="Play the playlist">▶ Play</button><button id="plnext" title="Next">⏭</button><button id="plshuf" title="Shuffle">🔀</button><button id="plrep" title="Repeat: off">🔁</button><button id="plclear" title="Clear playlist">🗑</button></div>
+ <div id="plpresets"><span class="lbl">▶ Play all:</span><span data-c="Christmas">🎄 Christmas</span><span data-c="Classical">Classical</span><span data-c="Ragtime">Ragtime</span><span data-c="Traditional">Traditional</span><span data-c="Simple">Simple</span><span data-c="My Songs">My Songs</span></div>
+ <ol id="plq"></ol>
+ <div class="pls"><input id="plname" type="text" placeholder="Playlist name" autocomplete="off"><button id="plsave" title="Save this playlist">💾 Save</button></div>
+ <div id="plsaved"></div>
+</aside>
+</div>
 </div>
 <button id="fsx" onclick="document.getElementById('fs').click()">✕</button>
 <script src="songs.js"></script>

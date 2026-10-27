@@ -16,6 +16,7 @@ const THEMES = {
   neon:  {name:'Neon',        rh:[186,100,62], lh:[312,100,64], line:[200,100,80], amb:[270,90,45]},
   gold:  {name:'Gold',        rh:[44,100,66],  lh:[22,100,62],  line:[42,100,85],  amb:[30,90,40]},
   ice:   {name:'Ice',         rh:[200,90,82],  lh:[230,85,78],  line:[200,100,92], amb:[215,80,45]},
+  xmas:  {name:'Christmas',   rh:[356,92,60],  lh:[138,72,48],  line:[45,100,78],  amb:[355,80,38], snow:true},
 };
 const prefs = Object.assign({theme:'sakura', quality:'auto', humanize:true, reverb:true}, JSON.parse(localStorage.getItem('piyaster.prefs')||'{}'));
 const savePrefs = () => localStorage.setItem('piyaster.prefs', JSON.stringify(prefs));
@@ -135,10 +136,11 @@ function parseABC(str){ let L=0.5, bpm=120, key=''; const body=[];
   return out.length?out:null; }
 const LS='neonPiano.mySongs';
 // My Songs live in IndexedDB (no 5 MB limit, full-length songs); localStorage is only a fallback
-const DB=(()=>{ let dbp=null; const open=()=>dbp||(dbp=new Promise((res,rej)=>{ if(!window.indexedDB) return rej('no indexedDB'); const r=indexedDB.open('piyaster-piano',1);
-    r.onupgradeneeded=()=>r.result.createObjectStore('songs',{keyPath:'name'}); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }));
-  const tx=(mode,fn)=>open().then(db=>new Promise((res,rej)=>{ const t=db.transaction('songs',mode), q=fn(t.objectStore('songs')); t.oncomplete=()=>res(q&&q.result); t.onerror=t.onabort=()=>rej(t.error); }));
-  return { all:()=>tx('readonly',s=>s.getAll()), put:o=>tx('readwrite',s=>s.put(o)), del:n=>tx('readwrite',s=>s.delete(n)) }; })();
+const DB=(()=>{ let dbp=null; const open=()=>dbp||(dbp=new Promise((res,rej)=>{ if(!window.indexedDB) return rej('no indexedDB'); const r=indexedDB.open('piyaster-piano',2);
+    r.onupgradeneeded=()=>{ const d=r.result; for(const n of ['songs','playlists']) if(!d.objectStoreNames.contains(n)) d.createObjectStore(n,{keyPath:'name'}); }; r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }));
+  const tx=(st,mode,fn)=>open().then(db=>new Promise((res,rej)=>{ const t=db.transaction(st,mode), q=fn(t.objectStore(st)); t.oncomplete=()=>res(q&&q.result); t.onerror=t.onabort=()=>rej(t.error); }));
+  const api=st=>({ all:()=>tx(st,'readonly',s=>s.getAll()), put:o=>tx(st,'readwrite',s=>s.put(o)), del:n=>tx(st,'readwrite',s=>s.delete(n)) });
+  return Object.assign(api('songs'),{pl:api('playlists')}); })();
 let MINE=[], useLS=false;
 const lsGet=()=>{ try{ return JSON.parse(localStorage.getItem(LS))||[]; }catch(e){ return []; } };
 function getMine(){ return MINE; }
@@ -151,7 +153,7 @@ async function initMine(){ try{ MINE=(await DB.all())||[]; const old=lsGet();
   MINE.sort((a,b)=>(a.at||0)-(b.at||0)); renderLib(); window.__mineReady=MINE.length; }
 // built-in full-length library (songs/index.json + one JSON per song, loaded on demand)
 let CATALOG=[]; const songCache={};
-const CATS=['Classical','Ragtime','Traditional'];
+const CATS=['Christmas','Classical','Ragtime','Traditional'];
 const fmtT=s=>{ s=Math.max(0,Math.round(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 async function loadCatalog(){ try{ CATALOG=await (await fetch('songs/index.json')).json(); }catch(e){ CATALOG=[]; } renderLib(); }
 async function catNotes(c){ if(!songCache[c.id]){ const j=await (await fetch('songs/'+c.id+'.json')).json(); songCache[c.id]=j.notes; }
@@ -175,9 +177,20 @@ async function fromInput(){ const q=$('song').value.trim(); if(!q){ msg('Type a 
   if(/[A-Ga-g]/.test(q) && (/^X:|\nK:|^[\^_=A-Ga-gzZ,'\d\/\s|]+$/.test(q)) && !/\s[a-z]{3,}/i.test(' '+q.replace(/^[A-Za-z]:.*$/gm,''))){
     n = parseABC(q); if(n){ load('ABC tune',n); msg('Playing ABC notation 🎼'); return true; } }
   const s = findSong(q);
-  if(s && s.cat){ msg(`Loading <b>${s.name}</b>…`); try{ const n=await catNotes(s.cat); load(s.name,n,'hands'); msg(`Now playing: <b>${s.name}</b> · ${s.composer} · ${fmtT(s.dur)} <span class="dim">(${s.lic==='PD'?'public domain':s.lic==='MIT'?'original arrangement':s.lic+' — see credits'})</span>`); return true; }catch(e){ msg('Could not load that song: '+e); return false; } }
-  if(s){ load(s.name, s.mine? s.notes.map(n=>({...n})) : builtIn(s), s.mine?(s.mode||'hands'):'hands'); msg(`Now playing: <b>${s.name.replace(/</g,'&lt;')}</b>${s.mine?' (My Songs)':''}`); return true; }
+  if(s) return loadRef(refOf(s));
   msg(`I don't have “${esc(q)}” built in 🎵 ${findLinks(q)}`); return false; }
+// a song reference: {t:'c',id} built-in catalog · {t:'s',name} simple tune · {t:'m',name} My Songs
+function refOf(s){ return s.cat&&s.cat.id?{t:'c',id:s.cat.id}:s.mine?{t:'m',name:s.name}:{t:'s',name:s.name}; }
+function refInfo(r){ if(r.t==='c'){ const c=CATALOG.find(x=>x.id===r.id); return c&&{name:c.name,dur:c.dur,cat:c.cat}; }
+  if(r.t==='m'){ const o=MINE.find(x=>x.name===r.name); return o&&{name:o.name,dur:o.notes.reduce((a,x)=>Math.max(a,x.t+x.d),0),cat:'My Songs'}; }
+  const o=SONGS.find(x=>x.name===r.name); return o&&{name:o.name,dur:0,cat:'Simple'}; }
+async function loadRef(r){
+  if(r.t==='c'){ const s=CATALOG.find(x=>x.id===r.id); if(!s){ msg('That song is no longer in the library.'); return false; }
+    msg(`Loading <b>${s.name}</b>…`); try{ const n=await catNotes(s); load(s.name,n,'hands'); msg(`Now playing: <b>${s.name}</b> · ${s.composer} · ${fmtT(s.dur)} <span class="dim">(${s.lic==='PD'?'public domain':s.lic==='MIT'?'original arrangement':s.lic+' — see credits'})</span>`+xmasHint(s)); return true; }catch(e){ msg('Could not load that song: '+e); return false; } }
+  if(r.t==='m'){ const o=MINE.find(x=>x.name===r.name); if(!o){ msg('That song is no longer in My Songs.'); return false; } load(o.name,o.notes.map(n=>({...n})),o.mode||'hands'); msg(`Now playing: <b>${esc(o.name)}</b> (My Songs)`); return true; }
+  const o=SONGS.find(x=>x.name===r.name); if(!o) return false; load(o.name,builtIn(o),'hands'); msg(`Now playing: <b>${esc(o.name)}</b>`+(/jingle/i.test(o.name)?xmasHint({cat:'Christmas'}):'')); return true; }
+function xmasHint(s){ return s.cat==='Christmas'&&prefs.theme!=='xmas' ? ` <a class="find" href="#" data-xmas="1">🎄 Try the Christmas look</a>` : ''; }
+$('msg').addEventListener('click',e=>{ const a=e.target.closest('[data-xmas]'); if(!a) return; e.preventDefault(); prefs.theme='xmas'; $('theme').value='xmas'; savePrefs(); legend(); a.remove(); });
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const FIND_SITES=[['BitMidi','https://bitmidi.com/search?q='],['MuseScore','https://musescore.com/sheetmusic?text='],['MidiWorld','https://www.midiworld.com/search/?q='],['FreeMIDI','https://freemidi.org/search?q='],['Google','https://www.google.com/search?q=',' piano midi download']];
 function findLinks(q){ const e=encodeURIComponent;
@@ -219,17 +232,100 @@ function legend(){ const L=$('legend'); if(!L) return; L.innerHTML=''; if(!song.
   else { const ids=[...new Set(song.notes.map(n=>n.h))]; ids.slice(0,8).forEach(i=>{ const s=document.createElement('span'); s.className='hand'; s.style.setProperty('--c',css(trackCol(i),0)); s.innerHTML=`<i></i>Track ${i+1}`; L.appendChild(s); });
     [['rh','Track 1'],['lh','Other tracks']].forEach(([k,lab])=>{ const b=document.createElement('button'); b.className='hand'+(muted[k]?' off':''); b.textContent=(muted[k]?'🔇 ':'🔊 ')+lab; b.onclick=()=>{muted[k]=!muted[k];legend();}; L.appendChild(b); }); } }
 const lib=$('lib');
+// ---------- playlist (right panel / mobile drawer) ----------
+const PL=(()=>{ const QK='piyaster.queue';
+  let st=Object.assign({items:[],cur:-1,shuffle:false,repeat:'off'},JSON.parse(localStorage.getItem(QK)||'{}'));
+  let order=[], saved=[], timer=0, uid=Date.now();
+  st.items.forEach(x=>x.k=x.k||++uid);
+  const persist=()=>localStorage.setItem(QK,JSON.stringify({items:st.items.map(({k,...r})=>r),cur:st.cur,shuffle:st.shuffle,repeat:st.repeat}));
+  const sameRef=(a,b)=>a.t===b.t&&(a.id||a.name)===(b.id||b.name);
+  function mkOrder(){ const n=st.items.length; order=[...Array(n).keys()];
+    if(st.shuffle){ for(let i=n-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
+      if(st.cur>=0){ order=order.filter(i=>i!==st.cur); order.unshift(st.cur); } } }
+  const P={ active:false,
+    get items(){ return st.items; }, get cur(){ return st.cur; }, get order(){ return order; }, get state(){ return st; },
+    add(r,quiet){ st.items.push({...r,k:++uid}); mkOrder(); persist(); P.render(); if(!quiet){ const i=refInfo(r); msg(`Added <b>${esc(i?i.name:'song')}</b> to the playlist (${st.items.length}) 🎶`); } },
+    remove(i){ st.items.splice(i,1); if(st.cur===i){ st.cur=-1; P.active=false; } else if(st.cur>i) st.cur--; mkOrder(); persist(); P.render(); },
+    move(from,to){ if(from===to) return; const [x]=st.items.splice(from,1); st.items.splice(to,0,x);
+      if(st.cur===from) st.cur=to; else if(from<st.cur&&to>=st.cur) st.cur--; else if(from>st.cur&&to<=st.cur) st.cur++; mkOrder(); persist(); P.render(); },
+    clear(){ st.items=[]; st.cur=-1; P.active=false; mkOrder(); persist(); P.render(); },
+    set(refs,play){ st.items=refs.map(r=>({...r,k:++uid})); st.cur=-1; mkOrder(); persist(); P.render(); if(play&&refs.length) P.play(st.shuffle?order[0]:0); },
+    async play(i){ clearTimeout(timer); if(i<0||i>=st.items.length) return; st.cur=i; if(!order.length||order.length!==st.items.length) mkOrder(); persist(); P.render();
+      const r=st.items[i]; PA.unlock(); const inf=refInfo(r); if(inf) $('song').value=inf.name;
+      if(await loadRef(r)){ P.active=true; start(); P.render(); } else { P.active=true; timer=setTimeout(()=>P.next(),1200); } },
+    nextIdx(){ if(!st.items.length) return -1; if(st.repeat==='one'&&st.cur>=0) return st.cur;
+      const p=order.indexOf(st.cur); if(p<0) return order[0]; if(p+1<order.length) return order[p+1];
+      if(st.repeat==='all'){ if(st.shuffle){ const c=st.cur; mkOrder(); if(order.length>1&&order[0]===c) order.push(order.shift()); } return order[0]; } return -1; },
+    next(){ const i=st.repeat==='one'?(()=>{ const p=order.indexOf(st.cur); return p+1<order.length?order[p+1]:order[0]; })():P.nextIdx(); if(i>=0) P.play(i); },
+    prev(){ const p=order.indexOf(st.cur); if(p>0) P.play(order[p-1]); else if(st.items.length) P.play(order[0]); },
+    // called when the current song finishes: returns true when the playlist takes over
+    ended(){ if(!P.active) return false; const i=P.nextIdx();
+      if(i<0){ P.active=false; msg('Playlist finished 🎉 Press ▶ in the playlist to play it again.'); P.render(); return true; }
+      const inf=refInfo(st.items[i]); msg(`Up next: <b>${esc(inf?inf.name:'')}</b> …`); timer=setTimeout(()=>P.play(i),1500); return true; },
+    mark(){ if(!P.active){ const i=st.items.findIndex(x=>song.name&&refInfo(x)&&refInfo(x).name===song.name); st.cur=i; persist(); } P.render(); },
+    async loadSaved(){ try{ saved=(await DB.pl.all())||[]; }catch(e){ saved=JSON.parse(localStorage.getItem('piyaster.playlists')||'[]'); } saved.sort((a,b)=>a.name.localeCompare(b.name)); P.render(); window.__plReady=saved.length; },
+    async save(name){ name=(name||'').trim(); if(!name){ msg('Type a name for the playlist first.'); return; } if(!st.items.length){ msg('The playlist is empty — tap + on some songs first.'); return; }
+      const o={name,items:st.items.map(({k,...r})=>r),at:Date.now()}; saved=[...saved.filter(x=>x.name!==name),o].sort((a,b)=>a.name.localeCompare(b.name));
+      try{ await DB.pl.put(o); }catch(e){ localStorage.setItem('piyaster.playlists',JSON.stringify(saved)); } msg(`Saved playlist <b>${esc(name)}</b> (${o.items.length} songs) 💾`); P.render(); },
+    async del(name){ saved=saved.filter(x=>x.name!==name); try{ await DB.pl.del(name); }catch(e){ localStorage.setItem('piyaster.playlists',JSON.stringify(saved)); } P.render(); },
+    get saved(){ return saved; },
+    manual(){ P.active=false; clearTimeout(timer); },
+    toggleShuffle(){ st.shuffle=!st.shuffle; mkOrder(); persist(); P.render(); },
+    cycleRepeat(){ st.repeat={off:'all',all:'one',one:'off'}[st.repeat]||'off'; persist(); P.render(); },
+    preset(c){ let refs;
+      if(c==='Simple') refs=SONGS.map(s=>({t:'s',name:s.name}));
+      else if(c==='My Songs') refs=MINE.map(s=>({t:'m',name:s.name}));
+      else refs=CATALOG.filter(x=>x.cat===c).map(x=>({t:'c',id:x.id}));
+      if(!refs.length){ msg(c==='My Songs'?'My Songs is empty — drop a .mid file on the piano or use 🔎 Find.':'No songs in '+c+'.'); return; }
+      P.set(refs,true); },
+    render(){ const el=$('plq'); if(!el) return;
+      $('plshuf').classList.toggle('on',st.shuffle); $('plrep').classList.toggle('on',st.repeat!=='off');
+      $('plrep').textContent=st.repeat==='one'?'🔂':'🔁'; $('plrep').title='Repeat: '+st.repeat;
+      const now=st.cur>=0&&st.items[st.cur]?refInfo(st.items[st.cur]):null;
+      $('plnow').innerHTML=now?`♪ <b>${esc(now.name)}</b>`:`<span class="dim">${st.items.length?st.items.length+' songs · press ▶':'Tap + on any song to queue it'}</span>`;
+      el.innerHTML=''; let tot=0;
+      st.items.forEach((r,i)=>{ const inf=refInfo(r); tot+=inf?inf.dur:0; const li=document.createElement('li'); li.dataset.i=i; if(i===st.cur) li.className='now'+(P.active?' live':'');
+        li.innerHTML=`<span class="grip" title="Drag to reorder">⠿</span><span class="nm">${esc(inf?inf.name:'(missing) '+(r.name||r.id))}</span><small>${inf&&inf.dur?fmtT(inf.dur):''}</small><i title="Remove">✕</i>`;
+        li.querySelector('.nm').onclick=()=>P.play(i); li.querySelector('i').onclick=e=>{ e.stopPropagation(); P.remove(i); };
+        li.querySelector('.grip').addEventListener('pointerdown',e=>drag(e,li,i)); el.appendChild(li); });
+      const nw=el.querySelector('li.now'); if(nw&&nw.scrollIntoView) nw.scrollIntoView({block:'nearest'});
+      $('plcount').textContent=st.items.length?`${st.items.length} songs${tot?' · '+fmtT(tot):''}`:'';
+      const sv=$('plsaved'); sv.innerHTML=''; saved.forEach(o=>{ const b=document.createElement('span'); b.textContent=o.name+' ('+o.items.length+')'; b.title='Load this playlist';
+        b.onclick=()=>{ P.set(o.items,false); msg(`Loaded playlist <b>${esc(o.name)}</b> — press ▶ to play.`); $('plname').value=o.name; };
+        const x=document.createElement('i'); x.textContent='✕'; x.title='Delete playlist'; x.onclick=e=>{ e.stopPropagation(); if(confirm('Delete playlist “'+o.name+'”?')) P.del(o.name); }; b.appendChild(x); sv.appendChild(b); });
+      if(!saved.length) sv.innerHTML='<span class="dim">No saved playlists yet</span>'; } };
+  // pointer drag-to-reorder (works with mouse and touch)
+  function drag(e,li,from){ e.preventDefault(); const list=$('plq'); li.classList.add('dragging'); let to=from; li.setPointerCapture&&li.setPointerCapture(e.pointerId);
+    const mv=ev=>{ const items=[...list.children]; to=items.length-1; for(let j=0;j<items.length;j++){ const r=items[j].getBoundingClientRect(); if(ev.clientY<r.top+r.height/2){ to=j>from?j-1:j; break; } }
+      items.forEach((x,j)=>x.classList.toggle('drop',j===(to>=from?to+1:to)&&to!==from)); list.classList.toggle('drop-end',to===items.length-1&&to!==from); };
+    const up=()=>{ removeEventListener('pointermove',mv); removeEventListener('pointerup',up); removeEventListener('pointercancel',up); li.classList.remove('dragging'); P.move(from,to); };
+    addEventListener('pointermove',mv); addEventListener('pointerup',up); addEventListener('pointercancel',up); }
+  mkOrder(); return P; })();
+$('plplay').onclick=()=>{ if(!PL.items.length){ msg('Tap + on any song (or a ▶ Play all button) to fill the playlist.'); return; } PL.play(PL.cur>=0?PL.cur:(PL.order[0]||0)); };
+$('plnext').onclick=()=>PL.next(); $('plprev').onclick=()=>PL.prev();
+$('plshuf').onclick=()=>PL.toggleShuffle();
+$('plrep').onclick=()=>PL.cycleRepeat();
+$('plclear').onclick=()=>{ if(!PL.items.length||confirm('Clear the playlist?')) PL.clear(); };
+$('plsave').onclick=()=>PL.save($('plname').value);
+$('plname').onkeydown=e=>{ if(e.key==='Enter') PL.save($('plname').value); };
+$('plpresets').querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>PL.preset(b.dataset.c));
+const plToggle=open=>{ document.body.classList.toggle('pl-open',open); setTimeout(layout,260); };
+$('plbtn').onclick=()=>plToggle(!document.body.classList.contains('pl-open')); $('plx').onclick=()=>plToggle(false);
+if(innerWidth>=900) document.body.classList.add('pl-open');
+PL.loadSaved(); window.__pl=PL;
 function renderLib(){ lib.innerHTML=''; const mine=getMine();
   const head=t=>{ const h=document.createElement('b'); h.textContent=t; lib.appendChild(h); };
   const chip=(label,meta,fn,cls)=>{ const b=document.createElement('span'); if(cls) b.className=cls; b.textContent=label; if(meta){ const m=document.createElement('small'); m.textContent=meta; b.appendChild(m); } b.onclick=fn; lib.appendChild(b); return b; };
-  const playName=n=>()=>{ $('song').value=n; $('play').click(); };
+  const playName=r=>()=>playNow(r);
+  const plus=(b,r)=>{ const p=document.createElement('em'); p.className='add'; p.textContent='+'; p.title='Add to playlist'; p.onclick=e=>{ e.stopPropagation(); PL.add(r); p.classList.add('ok'); setTimeout(()=>p.classList.remove('ok'),600); }; b.insertBefore(p,b.firstChild); };
   head('📚 My Songs'+(mine.length?'':' — drop a .mid file here, or use 🔎 Find to get one'));
-  mine.forEach(s=>{ const dur=s.notes.reduce((a,x)=>Math.max(a,x.t+x.d),0); const b=chip(s.name,fmtT(dur),playName(s.name),'mine');
+  mine.forEach(s=>{ const dur=s.notes.reduce((a,x)=>Math.max(a,x.t+x.d),0); const r={t:'m',name:s.name}; const b=chip(s.name,fmtT(dur),playName(r),'mine'); plus(b,r);
     const x=document.createElement('i'); x.textContent='✕'; x.title='Delete';
     x.onclick=e=>{ e.stopPropagation(); if(confirm('Delete “'+s.name+'” from My Songs?')) delMine(s.name).then(renderLib); }; b.appendChild(x); });
   for(const c of CATS){ const L=CATALOG.filter(x=>x.cat===c); if(!L.length) continue; head(c);
-    L.forEach(x=>chip(x.name,fmtT(x.dur),playName(x.name))); }
-  head('Simple tunes'); SONGS.forEach(s=>chip(s.name,'',playName(s.name)));
+    L.forEach(x=>{ const r={t:'c',id:x.id}; plus(chip(x.name,fmtT(x.dur),playName(r),c==='Christmas'?'xm':''),r); }); }
+  head('Simple tunes'); SONGS.forEach(s=>{ const r={t:'s',name:s.name}; plus(chip(s.name,'',playName(r)),r); });
+  PL.render();
   const cr=document.createElement('a'); cr.href='songs/CREDITS.md'; cr.target='_blank'; cr.className='credits'; cr.textContent='Song sources & licenses'; lib.appendChild(cr); }
 async function saveCurrent(def,quiet){ if(!song.notes.length){ msg('Load a MIDI file or type notes first, then press 💾 Save.'); return; }
   const name=(quiet? (def||song.name) : (prompt('Name this song for My Songs:', def||song.name)||'')).trim(); if(!name) return;
@@ -261,16 +357,17 @@ addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT'&&e.target.type==='
 addEventListener('keyup',e=>{ const k=e.key.toLowerCase(); const m=down[k]; if(m==null) return; delete down[k]; delete held[m]; PA.noteOff(m); });
 
 // ---------- controls ----------
-function start(){ PA.unlock(); playing=true; last=performance.now(); $('pause').textContent='⏸'; if(innerWidth<900) document.body.classList.add('hide-lib'); }
-$('play').onclick = async () => { PA.unlock(); if(await fromInput()) start(); };
+function start(){ PA.unlock(); playing=true; last=performance.now(); $('pause').textContent='⏸'; if(innerWidth<900){ document.body.classList.add('hide-lib'); if(document.body.classList.contains('pl-open')){ document.body.classList.remove('pl-open'); setTimeout(layout,260); } } }
+$('play').onclick = async () => { PA.unlock(); PL.manual(); if(await fromInput()){ PL.mark(); start(); } };
+async function playNow(r){ PA.unlock(); PL.manual(); const i=refInfo(r); if(i) $('song').value=i.name; if(await loadRef(r)){ PL.mark(); start(); } }
 $('song').onkeydown = e => { if(e.key==='Enter'){ e.preventDefault(); $('play').click(); } };
 $('pause').onclick = () => { if(!song.notes.length) return; if(playing){ playing=false; $('pause').textContent='▶'; } else start(); };
-$('stop').onclick = () => { PA.allOff(); playing=false; seek(-1.2); $('pause').textContent='⏸'; };
+$('stop').onclick = () => { PL.manual(); PL.render(); PA.allOff(); playing=false; seek(-1.2); $('pause').textContent='⏸'; };
 $('tempo').oninput = e => { tempo=+e.target.value; $('tv').textContent=tempo.toFixed(2).replace(/0$/,'')+'×'; };
 
 // ---------- render ----------
 function rr(c,x,y,w,h,r){ c.beginPath(); if(c.roundRect) c.roundRect(x,y,w,h,r); else c.rect(x,y,w,h); }
-let dust=[]; // ambient motes
+let dust=[], snow=[]; // ambient motes, snowflakes (Christmas look)
 function frame(now){ const dt=Math.min(0.05,(now-last)/1000)||0.016; last=now; const hi=HIQ(); const th=T(); const f60=dt*60;
   const N=song.notes;
   if(playing){ pos+=dt*tempo;
@@ -278,7 +375,7 @@ function frame(now){ const dt=Math.min(0.05,(now-last)/1000)||0.016; last=now; c
     while(aIdx<N.length && N[aIdx].t+(prefs.humanize?(N[aIdx].ht||0):0) <= pos+LA*tempo){ const n=N[aIdx++]; if(isMuted(n)) continue;
       const ht=prefs.humanize?(n.ht||0):0; const when=PA.time+Math.max(0,(n.t+ht-pos)/tempo); PA.noteOn(n.m, velOf(n), when, n.d/tempo); }
     while(vIdx<N.length && N[vIdx].t<=pos){ const n=N[vIdx++]; if(!isMuted(n)) fx(n.m, colOf(n), velOf(n)); }
-    if(vIdx>=N.length&&N.length&&pos>(song.end||0)+1.5){ window.__finished=(window.__finished||0)+1; window.__finishedAt=pos; playing=false; msg(`Finished <b>${song.name}</b> 🎉 Press Play to hear it again.`); seek(-1.2); } }
+    if(vIdx>=N.length&&N.length&&pos>(song.end||0)+1.5){ window.__finished=(window.__finished||0)+1; window.__finishedAt=pos; playing=false; seek(-1.2); if(!PL.ended()) msg(`Finished <b>${esc(song.name)}</b> 🎉 Press Play to hear it again.`); } }
   const top=H-kbH, look=LOOK(), pps=top/look, tnow=performance.now();
   // active (sounding) notes -> lit keys
   const active={}; const i0=lowIdx(pos-(song.maxD||0)-0.1); window.__scan=0;
@@ -294,6 +391,11 @@ function frame(now){ const dt=Math.min(0.05,(now-last)/1000)||0.016; last=now; c
   ctx.globalCompositeOperation='lighter';
   for(const d of dust){ d.y+=d.vy*f60; d.x+=Math.sin(tnow/2000+d.p)*0.08*f60; if(d.y<0){ d.y=top; d.x=Math.random()*W; }
     ctx.fillStyle=css(th.line,0,d.a*(0.5+0.5*Math.sin(tnow/700+d.p))); ctx.fillRect(d.x,d.y,d.s,d.s); }
+  if(th.snow){ const ns=hi?140:50; while(snow.length<ns) snow.push({x:Math.random()*W,y:Math.random()*top,vy:0.25+Math.random()*0.7,r:0.6+Math.random()*1.9,p:Math.random()*6,a:0.25+Math.random()*0.5});
+    ctx.globalCompositeOperation='source-over';
+    for(const f of snow){ f.y+=f.vy*f60; f.x+=Math.sin(tnow/1500+f.p)*0.35*f60; if(f.y>top){ f.y=-4; f.x=Math.random()*W; }
+      ctx.fillStyle=`rgba(255,255,255,${f.a})`; ctx.beginPath(); ctx.arc(f.x,f.y,f.r,0,7); ctx.fill(); }
+    ctx.globalCompositeOperation='lighter'; } else if(snow.length) snow=[];
   // glow buffer
   gx.setTransform(1,0,0,1,0,0); gx.globalCompositeOperation='source-over'; gx.clearRect(0,0,glow.width,glow.height); gx.setTransform(1/GS,0,0,1/GS,0,0); gx.globalCompositeOperation='lighter';
   // ---- falling note bars
