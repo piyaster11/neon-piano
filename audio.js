@@ -7,7 +7,11 @@ window.PianoAudio = (() => {
   let ac, master, bus, wet, conv, comp, buf = {4:{},10:{},16:{}}, rel = {}, ready = false, failed = false;
   const S = { reverb:true, sustain:false, pedal:false, quality:'high', volume:0.7, onStatus:()=>{} };
   const voices = {}; // midi -> [voice]
-  function ctx(){ if (ac) return ac; ac = new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
+  function ctx(){ if (ac) return ac;
+    // iOS 17+: play through the silent switch like a music app
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch(e){}
+    const AC = window.AudioContext||window.webkitAudioContext; try { ac = new AC({latencyHint:'interactive'}); } catch(e){ ac = new AC(); }
+    ac.onstatechange = () => { window.__acState = ac.state; };
     master = ac.createGain(); master.gain.value = S.volume;
     bus = ac.createGain();
     comp = ac.createDynamicsCompressor(); comp.threshold.value=-12; comp.knee.value=12; comp.ratio.value=2.5; comp.attack.value=0.004; comp.release.value=0.25;
@@ -23,15 +27,27 @@ window.PianoAudio = (() => {
       for (let i=pre;i<len;i++){ const t=(i-pre)/sr; const env=Math.exp(-t*2.1)*(t<0.06?t/0.06:1);
         const cut=0.55*Math.exp(-t*0.9)+0.04; lp += cut*((Math.random()*2-1)-lp); d[i]+=lp*env*0.9; } }
     return b; }
-  function unlock(){ ctx(); if (ac.state!=='running') ac.resume(); const s=ac.createBufferSource(); s.buffer=ac.createBuffer(1,1,22050); s.connect(ac.destination); s.start(0); }
+  // iOS needs resume() + a (silent) buffer started inside a user gesture; also after an interruption/backgrounding
+  let unlocked=false;
+  function unlock(){ ctx(); if (ac.state!=='running'){ try{ ac.resume(); }catch(e){} }
+    if (!unlocked || ac.state!=='running'){ try{ const s=ac.createBufferSource(); s.buffer=ac.createBuffer(1,1,22050); s.connect(ac.destination); s.start(0); }catch(e){} unlocked = ac.state==='running' || unlocked; } }
+  function resume(){ if(!ac) return Promise.resolve(); if(ac.state==='running') return Promise.resolve(); try{ const p=ac.resume(); return p&&p.catch?p.catch(()=>{}):Promise.resolve(); }catch(e){ return Promise.resolve(); } }
   async function fetchBuf(url){ const r=await fetch(url); if(!r.ok) throw url+' '+r.status; const ab=await r.arrayBuffer(); return await new Promise((res,rej)=>ctx().decodeAudioData(ab,res,rej)); }
   async function load(){ ctx(); let done=0; const total=ANCH.length;
     S.onStatus(`Loading grand piano… 0/${total}`);
     try { await Promise.all(ANCH.map(async([n,m])=>{ buf[10][m]=await fetchBuf(`samples/v10/${n}.mp3`); done++; S.onStatus(`Loading grand piano… ${done}/${total}`); }));
       ready=true; S.onStatus('Grand piano ready', true); window.__samplesLoaded=true;
     } catch(e){ failed=true; window.__sampleError=String(e); S.onStatus('Piano samples failed to load — using synth', true, true); return; }
-    if (S.quality==='low') return;
-    // background: extra velocity layers + release samples
+    // medium layer is enough to play. Soft/loud layers + key-release samples come later:
+    // right away on Wi-Fi/desktop, after a pause on phones, and only on Wi-Fi when the connection is metered (cellular / data saver).
+    const c=navigator.connection, metered=()=>!!(c&&(c.saveData||c.type==='cellular'||/(^|-)(2g|3g)$/.test(c.effectiveType||'')));
+    window.__metered=metered();
+    if (metered()){ S.onStatus('Grand piano ready · data saver: extra layers load on Wi-Fi', true);
+      if (c && c.addEventListener) c.addEventListener('change', function f(){ if(!metered()){ c.removeEventListener('change',f); extras(); } }); return; }
+    if (S.quality==='low') await new Promise(r=>setTimeout(r,6000));
+    return extras(); }
+  let extrasStarted=false;
+  async function extras(){ if(extrasStarted) return; extrasStarted=true;
     const jobs=[]; for (const v of [16,4]) for (const [n,m] of ANCH) jobs.push(()=>fetchBuf(`samples/v${v}/${n}.mp3`).then(b=>buf[v][m]=b).catch(()=>{}));
     for (let i=1;i<=88;i++) jobs.push(()=>fetchBuf(`samples/rel/rel${i}.mp3`).then(b=>rel[20+i]=b).catch(()=>{}));
     let k=0; const worker=async()=>{ while(k<jobs.length) await jobs[k++](); };
@@ -72,7 +88,7 @@ window.PianoAudio = (() => {
     [['triangle',1,0.5],['sine',2,0.18]].forEach(([type,mul,amp])=>{ const o=ac.createOscillator(); o.type=type; o.frequency.value=f*mul; const og=ac.createGain(); og.gain.value=amp; o.connect(og); og.connect(g); o.start(t); osc.push(o); });
     g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.35*vel,t+0.008); g.gain.setTargetAtTime(0.05*vel,t+0.01,0.6); return {m,g,osc,vel,level:0.35*vel}; }
   return {
-    ctx, unlock, load, noteOn, noteOff, pedalUp, allOff, S,
+    ctx, unlock, resume, load, noteOn, noteOff, pedalUp, allOff, S,
     get time(){ return ac?ac.currentTime:0; }, get ready(){ return ready; },
     setVolume(v){ S.volume=v; if(master) master.gain.setTargetAtTime(v,ac.currentTime,0.02); },
     setReverb(on){ S.reverb=on; if(wet) wet.gain.setTargetAtTime(on?0.3:0,ac.currentTime,0.1); },

@@ -1,0 +1,22 @@
+// Piyaster Piano service worker: offline app shell + piano samples + songs
+const VER='pp-v6-1';
+const SHELL=['./','index.html','app.js','audio.js','songs.js','manifest.json','songs/index.json','songs/CREDITS.md','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png'];
+const CORE_SAMPLES=["samples/v10/A0.mp3", "samples/v10/A1.mp3", "samples/v10/A2.mp3", "samples/v10/A3.mp3", "samples/v10/A4.mp3", "samples/v10/A5.mp3", "samples/v10/A6.mp3", "samples/v10/A7.mp3", "samples/v10/C1.mp3", "samples/v10/C2.mp3", "samples/v10/C3.mp3", "samples/v10/C4.mp3", "samples/v10/C5.mp3", "samples/v10/C6.mp3", "samples/v10/C7.mp3", "samples/v10/C8.mp3", "samples/v10/Ds1.mp3", "samples/v10/Ds2.mp3", "samples/v10/Ds3.mp3", "samples/v10/Ds4.mp3", "samples/v10/Ds5.mp3", "samples/v10/Ds6.mp3", "samples/v10/Ds7.mp3", "samples/v10/Fs1.mp3", "samples/v10/Fs2.mp3", "samples/v10/Fs3.mp3", "samples/v10/Fs4.mp3", "samples/v10/Fs5.mp3", "samples/v10/Fs6.mp3", "samples/v10/Fs7.mp3"];
+const SONGS=["songs/alla-turca.json", "songs/amazing-grace.json", "songs/angels-from-the-realms.json", "songs/angels-we-have-heard.json", "songs/arabesque-1.json", "songs/away-in-a-manger.json", "songs/bethena.json", "songs/bleak-midwinter.json", "songs/brother-james.json", "songs/canon-in-d.json", "songs/carol-of-the-bells.json", "songs/clair-de-lune.json", "songs/consolation-3.json", "songs/coventry-carol.json", "songs/deck-the-halls.json", "songs/ding-dong-merrily.json", "songs/easy-winners.json", "songs/elite-syncopations.json", "songs/entertainer.json", "songs/first-noel.json", "songs/from-heaven-above.json", "songs/fur-elise.json", "songs/gnossienne-1.json", "songs/god-rest-ye.json", "songs/good-king-wenceslas.json", "songs/greensleeves.json", "songs/gymnopedie-1.json", "songs/hark-the-herald.json", "songs/holly-and-ivy.json", "songs/impromptu-90-3.json", "songs/jingle-bells.json", "songs/jolly-old-st-nicholas.json", "songs/joy-to-the-world.json", "songs/lo-how-a-rose.json", "songs/maple-leaf.json", "songs/midnight-clear.json", "songs/minuet-g.json", "songs/minute-waltz.json", "songs/moonlight-1.json", "songs/mountain-king.json", "songs/nocturne-9-2.json", "songs/o-christmas-tree.json", "songs/o-come-all-ye-faithful.json", "songs/o-come-emmanuel.json", "songs/o-holy-night.json", "songs/o-little-town.json", "songs/once-in-royal.json", "songs/pineapple-rag.json", "songs/prelude-c.json", "songs/prelude-e-minor.json", "songs/raindrop.json", "songs/seasons-january.json", "songs/silent-night.json", "songs/sonata-facile.json", "songs/traumerei.json", "songs/up-on-the-housetop.json", "songs/we-three-kings.json", "songs/we-wish-you.json", "songs/what-child.json", "songs/wooden-soldiers.json"];
+self.addEventListener('install',e=>{ e.waitUntil(caches.open(VER+'-shell').then(c=>c.addAll(SHELL)).then(()=>caches.open('pp-media').then(c=>Promise.all(CORE_SAMPLES.map(u=>c.match(u).then(h=>h||c.add(u).catch(()=>{}))))))
+  .then(()=>self.skipWaiting())); });
+self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k.endsWith('-shell')&&k!==VER+'-shell').map(k=>caches.delete(k)))).then(()=>self.clients.claim())); });
+// warm the (small) song library for offline play when the page says we're not on a metered connection
+self.addEventListener('message',e=>{ if(e.data&&e.data.type==='warm-songs') e.waitUntil(caches.open('pp-media').then(c=>Promise.all(SONGS.map(u=>c.match(u).then(h=>h||c.add(u).catch(()=>{})))))); });
+self.addEventListener('fetch',e=>{ const req=e.request; if(req.method!=='GET') return; const url=new URL(req.url); if(url.origin!==location.origin) return;
+  const p=url.pathname;
+  // samples + song files never change: cache first, then network (and keep a copy)
+  if(/\/samples\/|\/songs\/[^/]+\.json$/.test(p)&&!/index\.json$/.test(p)){
+    const isSong=/\/songs\//.test(p);
+    e.respondWith(caches.open('pp-media').then(c=>c.match(req,{ignoreSearch:true}).then(hit=>{
+      const net=fetch(req).then(r=>{ if(r.ok) c.put(req,r.clone()); return r; });
+      if(hit){ if(isSong) e.waitUntil(net.catch(()=>{})); return hit; } return net; })));
+    return; }
+  // app shell + index: network first so updates arrive, cache when offline
+  e.respondWith(fetch(req).then(r=>{ if(r.ok){ const cp=r.clone(); caches.open(VER+'-shell').then(c=>c.put(req,cp)); } return r; })
+    .catch(()=>caches.match(req,{ignoreSearch:true}).then(h=>h||(req.mode==='navigate'?caches.match('index.html'):Response.error())))); });

@@ -1,1 +1,41 @@
-{"name":"Piyaster Piano","short_name":"Piyaster Piano","start_url":"./","display":"standalone","background_color":"#05030c","theme_color":"#05030c","icons":[]}
+{
+ "name": "Piyaster Piano",
+ "short_name": "Piyaster",
+ "description": "A glowing two-hand piano visualizer with full-length public-domain songs, Christmas carols and playlists.",
+ "id": "./",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "any",
+ "background_color": "#030204",
+ "theme_color": "#030204",
+ "categories": [
+  "music",
+  "entertainment"
+ ],
+ "icons": [
+  {
+   "src": "icons/icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icons/icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icons/icon-maskable-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  },
+  {
+   "src": "icons/apple-touch-icon.png",
+   "sizes": "180x180",
+   "type": "image/png"
+  }
+ ]
+}

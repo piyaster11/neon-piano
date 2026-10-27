@@ -24,14 +24,34 @@ const T = () => THEMES[prefs.theme] || THEMES.sakura;
 const css = (c, dl=0, a=1) => `hsla(${c[0]},${c[1]}%,${Math.max(0,Math.min(100,c[2]+dl))}%,${a})`;
 const trackCol = i => i===0 ? T().rh : i===1 ? T().lh : [(T().rh[0]+i*47)%360, 90, 76];
 const colOf = n => song.mode==='hands' ? (n.h ? T().lh : T().rh) : trackCol(n.h||0);
-const autoLow = () => (Math.min(innerWidth,innerHeight) < 600 && (devicePixelRatio||1) >= 2) || (navigator.hardwareConcurrency||8) <= 4;
+const isPhone = () => document.body.classList.contains('phone');
+const coarse = matchMedia('(pointer:coarse)').matches;
+const autoLow = () => (Math.min(innerWidth,innerHeight) < 600 && (devicePixelRatio||1) >= 2) || (coarse && Math.min(innerWidth,innerHeight) < 820) || (navigator.hardwareConcurrency||8) <= 4 || !!(navigator.connection&&navigator.connection.saveData);
 const HIQ = () => prefs.quality==='high' || (prefs.quality==='auto' && !autoLow());
 PA.S.quality = HIQ() ? 'high' : 'low';
 
 // ---------- audio wiring ----------
 const status = $('loading');
 PA.S.onStatus = (t, done, err) => { status.textContent = (err?'⚠️ ':'🎹 ')+t; if(done){ status.classList.add('ready'); if(!err) setTimeout(()=>status.classList.add('hide'),2500); } };
-['pointerdown','touchend','keydown'].forEach(ev=>addEventListener(ev,()=>PA.unlock(),{capture:true,passive:true}));
+['touchstart','pointerdown','touchend','click','keydown'].forEach(ev=>addEventListener(ev,()=>{ PA.unlock(); firstSound(); },{capture:true,passive:true}));
+// ---------- phone helpers: toast tips, iOS quirks ----------
+const UA=navigator.userAgent, IOS=/iP(hone|ad|od)/.test(UA)||(/Macintosh/.test(UA)&&navigator.maxTouchPoints>1);
+const STANDALONE=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const once=k=>{ try{ if(localStorage.getItem('piyaster.tip.'+k)) return false; localStorage.setItem('piyaster.tip.'+k,'1'); }catch(e){} return true; };
+let toastT=0; const toastQ=[];
+function toast(html,ms=9000){ if($('toast').classList.contains('show')){ toastQ.push([html,ms]); return; } $('toastt').innerHTML=html; $('toast').classList.add('show'); clearTimeout(toastT); if(ms) toastT=setTimeout(hideToast,ms); }
+function hideToast(){ clearTimeout(toastT); $('toast').classList.remove('show'); const n=toastQ.shift(); if(n) setTimeout(()=>toast(n[0],n[1]),400); }
+$('toastx').onclick=hideToast;
+let soundTipDone=false;
+function firstSound(){ if(soundTipDone) return; soundTipDone=true; if(IOS && once('mute')) setTimeout(()=>toast('🔈 <b>No sound?</b> Turn off <b>Silent mode</b> (the switch on the side of your iPhone) and turn the volume up.',10000),900); }
+// iOS: keep pinch / double-tap from zooming the page while playing
+['gesturestart','gesturechange'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
+document.addEventListener('contextmenu',e=>{ if(e.target===cv||(e.target.closest&&e.target.closest('#lib,#pl'))) e.preventDefault(); });
+// app backgrounding: pause, silence, and resume the audio when we come back
+let bgWasPlaying=false;
+document.addEventListener('visibilitychange',()=>{ if(document.hidden){ bgWasPlaying=playing; if(playing){ playing=false; $('pause').textContent='▶'; } PA.allOff(); }
+  else { PA.resume().then(()=>{ if(bgWasPlaying){ if(PA.ctx().state==='running') start(); else msg('Tap ▶ (⏸ button) to continue playing.'); } bgWasPlaying=false; }); } });
+addEventListener('pageshow',e=>{ if(e.persisted) PA.resume(); });
 $('vol').oninput = e => PA.setVolume(+e.target.value);
 PA.setReverb(prefs.reverb);
 function syncBtns(){ const sus=PA.S.sustain||PA.S.pedal; $('sus').classList.toggle('on',sus); $('sus').textContent=sus?'🦶 Sustain ON':'🦶 Sustain';
@@ -43,7 +63,11 @@ $('hum').onclick=()=>{ prefs.humanize=!prefs.humanize; savePrefs(); syncBtns(); 
 $('theme').value=prefs.theme; $('theme').onchange=e=>{ prefs.theme=e.target.value; savePrefs(); legend(); };
 $('quality').value=prefs.quality; $('quality').onchange=e=>{ prefs.quality=e.target.value; savePrefs(); PA.S.quality=HIQ()?'high':'low'; layout(); };
 $('cfg').onclick=()=>document.body.classList.toggle('show-settings');
-$('libbtn').onclick=()=>document.body.classList.toggle('hide-lib');
+$('libbtn').onclick=()=>{ const B=document.body; B.classList.toggle('hide-lib'); if(!B.classList.contains('hide-lib')&&isPhone()){ B.classList.remove('pl-open','menu-open'); } };
+$('libx').onclick=()=>document.body.classList.add('hide-lib');
+$('more').onclick=e=>{ e.stopPropagation(); document.body.classList.toggle('menu-open'); };
+$('tools').addEventListener('click',e=>{ if(e.target.closest('button,label')) setTimeout(()=>document.body.classList.remove('menu-open'),60); });
+$('scrim').onclick=()=>{ document.body.classList.remove('menu-open','pl-open'); };
 $('fs').onclick=()=>{ const el=document.documentElement; if(!document.fullscreenElement){ (el.requestFullscreen||el.webkitRequestFullscreen||(()=>{})).call(el); document.body.classList.add('cinema'); } else { document.exitFullscreen&&document.exitFullscreen(); document.body.classList.remove('cinema'); } };
 document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement) document.body.classList.remove('cinema'); setTimeout(layout,50); });
 addEventListener('keydown',e=>{ if(e.key==='Shift'&&!PA.S.pedal&&!(e.target.tagName==='INPUT'&&e.target.type==='text')){ PA.setPedal(true); syncBtns(); } });
@@ -55,17 +79,20 @@ let W=0,H=0,kbH=0,keys={},dpr=1,GS=4;
 function layout(){ const hi=HIQ(); dpr = hi ? Math.min(2, devicePixelRatio||1) : 1; const r = cv.getBoundingClientRect();
   W = r.width; H = r.height; cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr); ctx.setTransform(dpr,0,0,dpr,0,0);
   GS = hi ? 4 : 6; glow.width=Math.ceil(W/GS); glow.height=Math.ceil(H/GS); glow2.width=Math.ceil(W/16); glow2.height=Math.ceil(H/16);
-  if (W >= 1000) { LO=21; HI=108; } else if (W < 500) { LO=48; HI=84; } else { LO=36; HI=96; }
+  const ph=isPhone(), portrait=innerHeight>innerWidth;
+  if (W >= 1000) { LO=21; HI=108; } else if (ph && portrait) { LO=60; HI=84; } else if (W < 500) { LO=48; HI=84; } else { LO=36; HI=96; }
   if (song.notes.length){ let mn=1e9,mx=-1e9; for(const n of song.notes){ if(n.m<mn)mn=n.m; if(n.m>mx)mx=n.m; }
     while(mn<LO) LO-=12; while(mx>HI) HI+=12; LO=Math.max(21,LO); HI=Math.min(108,HI); }
   const whites=[]; for(let m=LO;m<=HI;m++) if(!isBlack(m)) whites.push(m);
   const ww = W/whites.length; keys = {};
-  kbH = Math.round(Math.min(H*0.26, Math.max(70, ww*5.4)));
+  kbH = Math.round(Math.min(H*(ph?0.34:0.26), Math.max(ph?96:70, ww*5.4)));
   whites.forEach((m,i)=> keys[m]={x:i*ww,w:ww,black:false});
   for(let m=LO;m<=HI;m++) if(isBlack(m) && keys[m-1]) { const off={1:0.6,3:0.72,6:0.58,8:0.66,10:0.74}[m%12]; keys[m]={x:keys[m-1].x+ww*off,w:ww*0.6,black:true}; }
   for (const m in keys) keys[m].cx = keys[m].x + keys[m].w/2;
 }
-addEventListener('resize', layout);
+function onResize(){ const was=isPhone(); window.__mq&&window.__mq(); if(isPhone()!==was){ document.body.classList.toggle('pl-open',!isPhone()&&innerWidth>=900); } layout(); }
+addEventListener('resize', onResize); addEventListener('orientationchange',()=>setTimeout(onResize,250));
+if(window.ResizeObserver) new ResizeObserver(()=>layout()).observe(cv);
 
 // ---------- state ----------
 let song = {name:'',notes:[],mode:'hands'}, pos = 0, playing = false, tempo = 1, last = 0, aIdx = 0, vIdx = 0;
@@ -311,14 +338,14 @@ $('plname').onkeydown=e=>{ if(e.key==='Enter') PL.save($('plname').value); };
 $('plpresets').querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>PL.preset(b.dataset.c));
 const plToggle=open=>{ document.body.classList.toggle('pl-open',open); setTimeout(layout,260); };
 $('plbtn').onclick=()=>plToggle(!document.body.classList.contains('pl-open')); $('plx').onclick=()=>plToggle(false);
-if(innerWidth>=900) document.body.classList.add('pl-open');
+if(!isPhone()) document.body.classList.add('pl-open');
 PL.loadSaved(); window.__pl=PL;
 function renderLib(){ lib.innerHTML=''; const mine=getMine();
   const head=t=>{ const h=document.createElement('b'); h.textContent=t; lib.appendChild(h); };
   const chip=(label,meta,fn,cls)=>{ const b=document.createElement('span'); if(cls) b.className=cls; b.textContent=label; if(meta){ const m=document.createElement('small'); m.textContent=meta; b.appendChild(m); } b.onclick=fn; lib.appendChild(b); return b; };
   const playName=r=>()=>playNow(r);
   const plus=(b,r)=>{ const p=document.createElement('em'); p.className='add'; p.textContent='+'; p.title='Add to playlist'; p.onclick=e=>{ e.stopPropagation(); PL.add(r); p.classList.add('ok'); setTimeout(()=>p.classList.remove('ok'),600); }; b.insertBefore(p,b.firstChild); };
-  head('📚 My Songs'+(mine.length?'':' — drop a .mid file here, or use 🔎 Find to get one'));
+  head('📚 My Songs'+(mine.length?'':isPhone()?' — use ⋯ → 🔎 Find to get a MIDI, then ⋯ → 🎵 MIDI to open it':' — drop a .mid file here, or use 🔎 Find to get one'));
   mine.forEach(s=>{ const dur=s.notes.reduce((a,x)=>Math.max(a,x.t+x.d),0); const r={t:'m',name:s.name}; const b=chip(s.name,fmtT(dur),playName(r),'mine'); plus(b,r);
     const x=document.createElement('i'); x.textContent='✕'; x.title='Delete';
     x.onclick=e=>{ e.stopPropagation(); if(confirm('Delete “'+s.name+'” from My Songs?')) delMine(s.name).then(renderLib); }; b.appendChild(x); });
@@ -357,7 +384,7 @@ addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT'&&e.target.type==='
 addEventListener('keyup',e=>{ const k=e.key.toLowerCase(); const m=down[k]; if(m==null) return; delete down[k]; delete held[m]; PA.noteOff(m); });
 
 // ---------- controls ----------
-function start(){ PA.unlock(); playing=true; last=performance.now(); $('pause').textContent='⏸'; if(innerWidth<900){ document.body.classList.add('hide-lib'); if(document.body.classList.contains('pl-open')){ document.body.classList.remove('pl-open'); setTimeout(layout,260); } } }
+function start(){ PA.unlock(); playing=true; last=performance.now(); $('pause').textContent='⏸'; document.body.classList.remove('menu-open'); if(isPhone()){ document.body.classList.add('hide-lib'); if(document.body.classList.contains('pl-open')){ document.body.classList.remove('pl-open'); setTimeout(layout,260); } } }
 $('play').onclick = async () => { PA.unlock(); PL.manual(); if(await fromInput()){ PL.mark(); start(); } };
 async function playNow(r){ PA.unlock(); PL.manual(); const i=refInfo(r); if(i) $('song').value=i.name; if(await loadRef(r)){ PL.mark(); start(); } }
 $('song').onkeydown = e => { if(e.key==='Enter'){ e.preventDefault(); $('play').click(); } };
@@ -368,7 +395,8 @@ $('tempo').oninput = e => { tempo=+e.target.value; $('tv').textContent=tempo.toF
 // ---------- render ----------
 function rr(c,x,y,w,h,r){ c.beginPath(); if(c.roundRect) c.roundRect(x,y,w,h,r); else c.rect(x,y,w,h); }
 let dust=[], snow=[]; // ambient motes, snowflakes (Christmas look)
-function frame(now){ const dt=Math.min(0.05,(now-last)/1000)||0.016; last=now; const hi=HIQ(); const th=T(); const f60=dt*60;
+let wasPlaying=null;
+function frame(now){ const dt=Math.min(0.05,(now-last)/1000)||0.016; last=now; if(playing!==wasPlaying){ wasPlaying=playing; document.body.classList.toggle('playing',playing); if(playing) rotateHint(); } const hi=HIQ(); const th=T(); const f60=dt*60;
   const N=song.notes;
   if(playing){ pos+=dt*tempo;
     // audio: schedule slightly ahead on the audio clock for tight timing
@@ -465,4 +493,12 @@ cv.addEventListener('pointerdown',e=>{ const r=cv.getBoundingClientRect(); if(e.
 // demo/autoplay via URL: ?song=fur+elise&seek=3
 const qp=new URLSearchParams(location.search); if(qp.get('song')){ $('song').value=qp.get('song'); (async()=>{ if(!CATALOG.length) await loadCatalog(); if(await fromInput()){ seek(+(qp.get('seek')||0)); start(); } })(); }
 if(qp.get('hidelib')) document.body.classList.add('hide-lib');
+// ---------- phone tips + PWA ----------
+let rotDone=false;
+function rotateHint(){ if(rotDone||!isPhone()||innerWidth>innerHeight) return; rotDone=true; try{ if(sessionStorage.getItem('piyaster.rot')) return; sessionStorage.setItem('piyaster.rot','1'); }catch(e){}
+  setTimeout(()=>toast('📱↻ <b>Turn your phone sideways</b> for a bigger keyboard with more octaves.',6000),600); }
+if(IOS && !STANDALONE && /Safari/.test(UA) && !/CriOS|FxiOS|EdgiOS/.test(UA) && once('a2hs'))
+  setTimeout(()=>toast('📲 <b>Install Piyaster Piano:</b> tap <b>Share</b> <span style="font-size:16px">⎋</span> then <b>Add to Home Screen</b>. It works offline too.',14000),4000);
+if('serviceWorker' in navigator && location.protocol!=='file:'){ addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').then(r=>{ window.__sw='registered';
+  navigator.serviceWorker.ready.then(reg=>{ window.__sw='ready'; const c=navigator.connection; if(!(c&&(c.saveData||c.type==='cellular'))&&reg.active) reg.active.postMessage({type:'warm-songs'}); }); }).catch(e=>window.__sw='error: '+e); }); }
 })();

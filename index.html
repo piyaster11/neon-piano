@@ -1,10 +1,18 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🎹%3C/text%3E%3C/svg%3E"><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#030204">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Piyaster Piano">
+<meta name="format-detection" content="telephone=no">
 <title>Piyaster Piano</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;height:100%;background:#030204;color:#f6e9f0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;overflow:hidden}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation}
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+input,textarea{-webkit-user-select:text;user-select:text}
+html,body{margin:0;height:100%;width:100%;max-width:100%;background:#030204;color:#f6e9f0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;overflow:hidden}
 #app{display:flex;flex-direction:column;height:100%;height:100dvh}
 header,#settings{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 10px;background:rgba(14,6,12,.92);z-index:2}
 header{border-bottom:1px solid #3a1426}
@@ -21,9 +29,10 @@ input[type=range]{width:90px;accent-color:#ff8fbf}
 #msg{font-size:13px;color:#ffc9de;padding:3px 10px;min-height:20px;background:rgba(14,6,12,.7);z-index:2}
 #stage{position:relative;flex:1;min-height:0}
 canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
-#lib{display:flex;flex-wrap:wrap;gap:6px;padding:0 10px 6px;background:rgba(14,6,12,.7);z-index:2;max-height:34vh;overflow:auto}
+#lib{display:flex;flex-wrap:wrap;gap:6px;padding:0 10px 6px;background:rgba(14,6,12,.7);z-index:2;max-height:34vh;max-height:34dvh;overflow:auto}
+#libhead,#more{display:none}#tools{display:contents}
 #msg a.find{display:inline-block;margin:3px 2px;padding:4px 9px;border-radius:999px;border:1px solid #ff8fbf;color:#fff;text-decoration:none;background:#2c1020;font-size:12px}#msg a.find:hover{background:#4a1631}#msg .dim{opacity:.7;font-size:12px}
-body.hide-lib #lib{display:none}
+body:not(.phone).hide-lib #libwrap{display:none}
 #lib span{font-size:12px;padding:3px 8px;border-radius:999px;border:1px solid #4a1c33;cursor:pointer;color:#f3c6d9}
 #lib span.mine{border-color:#c88bff;color:#e6cbff}#lib span i{font-style:normal;margin-left:6px;opacity:.7}#lib span i:hover{color:#f55;opacity:1}#lib b{font-size:12px;color:#ff8fbf;width:100%;margin-top:4px}#lib small{margin-left:6px;opacity:.55;font-size:10px}#lib .credits{font-size:11px;color:#c99;width:100%;margin-top:4px}
 #lib span:hover{border-color:#ff8fbf;color:#fff}
@@ -54,25 +63,65 @@ body.pl-open #pl{display:flex}
 #lib span em.add{font-style:normal;margin-right:5px;padding:0 4px;border-radius:5px;background:#2c1020;color:#ff8fbf;font-weight:700}#lib span em.add:hover{background:#ff8fbf;color:#2a0614}#lib span em.add.ok{background:#5c5;color:#031}
 #lib span.xm{border-color:#5a2a1c}
 body.cinema #pl{display:none!important}
-@media (max-width:899px){#pl{display:flex;position:fixed;top:0;right:0;bottom:0;width:min(86vw,320px);transform:translateX(105%);transition:transform .25s ease;box-shadow:-8px 0 30px #000a;z-index:7}body.pl-open #pl{transform:none}}
-body.cinema header,body.cinema #settings,body.cinema #msg,body.cinema #lib,body.cinema #legend{display:none}
+@media (max-width:0px){#pl{display:flex;position:fixed;top:0;right:0;bottom:0;width:min(86vw,320px);transform:translateX(105%);transition:transform .25s ease;box-shadow:-8px 0 30px #000a;z-index:7}body.pl-open #pl{transform:none}}
+body.cinema header,body.cinema #settings,body.cinema #msg,body.cinema #libwrap,body.cinema #legend,body.cinema #toast{display:none!important}
 body.cinema #fsx{display:block}#fsx{display:none;position:fixed;top:8px;right:8px;z-index:6;opacity:.5}
-@media (max-width:640px){h1{font-size:14px}header{gap:5px;padding:5px}button,.btn,select{padding:6px 8px;font-size:12px}input[type=range]{width:70px}#lib{max-height:56px}.wide{display:none}}
+#toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(64px + env(safe-area-inset-top));z-index:20;max-width:min(92vw,460px);padding:10px 40px 10px 14px;border-radius:12px;background:#1c0a14f2;border:1px solid #ff8fbf;box-shadow:0 0 18px #ff8fbf55;font-size:14px;line-height:1.35;display:none}#toast.show{display:block}#toast button{position:absolute;top:0;right:0;min-width:44px;min-height:44px;padding:0;border:none;background:none;font-size:16px}
+/* ---------- phones (portrait, and landscape with a short screen) ---------- */
+body.phone header{flex-wrap:nowrap;gap:5px;position:relative;padding:calc(5px + env(safe-area-inset-top)) calc(6px + env(safe-area-inset-right)) 5px calc(6px + env(safe-area-inset-left))}
+body.phone h1,body.phone .wide{display:none}
+body.phone button,body.phone .btn,body.phone select{min-height:44px;min-width:44px;padding:8px 10px;font-size:15px;display:inline-flex;align-items:center;justify-content:center;gap:4px}
+body.phone input[type=text]{font-size:16px;min-height:44px;min-width:0;flex:1 1 60px;padding:8px 10px}
+body.phone #play{padding:8px 12px}
+body.phone #more{display:inline-flex}
+body.phone #tools{display:none}
+body.phone.menu-open #tools{display:grid;grid-template-columns:1fr 1fr;gap:6px;position:absolute;top:100%;right:calc(6px + env(safe-area-inset-right));width:min(300px,94vw);padding:8px;background:#14070ff5;border:1px solid #6b2a4a;border-radius:14px;box-shadow:0 12px 34px #000d;z-index:30}
+body.phone.menu-open #tools .wide{display:inline}
+body.phone.menu-open #tools>*{justify-content:flex-start}
+body.phone #settings{gap:6px;padding:6px calc(8px + env(safe-area-inset-right)) 6px calc(8px + env(safe-area-inset-left))}
+body.phone #settings label{font-size:14px;min-height:44px}body.phone input[type=range]{width:120px;height:32px}
+body.phone #msg{padding:4px calc(10px + env(safe-area-inset-right)) 4px calc(10px + env(safe-area-inset-left));max-height:28dvh;overflow:auto}
+body.phone #legend{padding:2px calc(10px + env(safe-area-inset-right)) 4px calc(10px + env(safe-area-inset-left))}body.phone .hand{min-height:44px;font-size:14px}
+body.phone #main{padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+body.phone #loading{top:calc(64px + env(safe-area-inset-top))}
+body.phone.landscape.playing #msg,body.phone.landscape #legend,body.phone.landscape.playing #settings{display:none}
+/* song library = bottom sheet */
+body.phone #libwrap{position:fixed;left:0;right:0;bottom:0;z-index:25;display:flex;flex-direction:column;max-height:72dvh;background:#12070df7;border-top:1px solid #6b2a4a;border-radius:18px 18px 0 0;box-shadow:0 -12px 34px #000d;transition:transform .25s ease;padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+body.phone.hide-lib #libwrap{transform:translateY(110%);pointer-events:none}
+body.phone #libhead{display:flex;align-items:center;gap:8px;padding:6px 10px 2px;position:relative}body.phone #libhead b{flex:1;color:#ff8fbf;font-size:15px}
+body.phone #libhead::before{content:"";position:absolute;left:50%;top:5px;width:40px;height:4px;margin-left:-20px;border-radius:9px;background:#6b2a4a}
+body.phone #lib{max-height:none;flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;padding:4px 10px 12px;background:none;gap:8px}
+body.phone #lib b{font-size:14px;margin-top:8px}
+body.phone #lib span{display:inline-flex;align-items:center;min-height:46px;font-size:14px;padding:0 12px 0 0;overflow:hidden}
+body.phone #lib span em.add{align-self:stretch;display:inline-flex;align-items:center;justify-content:center;min-width:44px;margin:0 8px 0 0;border-radius:0;font-size:18px}
+body.phone #lib span i{padding:12px 4px 12px 10px;margin:0}body.phone #lib small{font-size:11px}body.phone #lib .credits{font-size:13px;padding:10px 0}
+/* playlist = side drawer */
+body.phone #pl{display:flex;position:fixed;top:0;right:0;bottom:0;width:min(88vw,340px);transform:translateX(110%);transition:transform .25s ease;box-shadow:-10px 0 34px #000c;z-index:26;padding:calc(8px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) 10px}
+body.phone.pl-open #pl{transform:none}
+body.phone .plc button{flex:1 1 0;padding:8px 2px;white-space:nowrap}body.phone .plc .primary{flex:2 1 0}body.phone #msg a.find{padding:11px 12px;margin:3px 2px}body.phone #plpresets span[data-c],body.phone #plsaved span{min-height:44px;display:inline-flex;align-items:center;font-size:14px;padding:0 12px}
+body.phone #plq li{min-height:46px;font-size:14px;padding:0 0 0 6px}body.phone #plq .grip,body.phone #plq li i{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
+body.phone #plq li small{font-size:11px}body.phone #plsaved i{padding:12px 2px 12px 10px}body.phone .pls button{min-width:64px}
+body.phone #scrim{display:none;position:fixed;inset:0;z-index:24;background:#0007}body.phone.pl-open #scrim,body.phone.menu-open #scrim{display:block}
+body.phone.menu-open #scrim{background:transparent;z-index:20}
 </style></head><body>
+<script>(function(){var mq=function(){var w=innerWidth,h=innerHeight,c=matchMedia('(pointer:coarse)').matches;var p=w<900||(c&&h<=500);var b=document.body;b.classList.toggle('phone',p);b.classList.toggle('landscape',w>h);b.classList.toggle('portrait',w<=h);};window.__mq=mq;mq();})();</script>
 <div id="app">
 <header>
 <h1>✦ Piyaster Piano</h1>
 <input id="song" type="text" placeholder="Song name (e.g. Clair de Lune), any title to 🔎 Find, or notes" autocomplete="off">
-<button id="play" class="primary">▶ Play</button>
+<button id="play" class="primary" aria-label="Play">▶<span class="wide"> Play</span></button>
+<button id="pause" title="Pause (Space)" aria-label="Pause">⏸</button>
+<div id="tools">
 <button id="find" title="Find a free MIDI of any song online">🔎<span class="wide"> Find</span></button>
-<button id="pause" title="Pause (Space)">⏸</button>
-<button id="stop" title="Stop">⏹</button>
-<label class="btn" for="file" title="Load a MIDI file">🎵<span class="wide"> MIDI</span></label><input id="file" type="file" accept=".mid,.midi">
+<button id="stop" title="Stop">⏹<span class="wide"> Stop</span></button>
+<label class="btn" for="file" title="Load a MIDI file">🎵<span class="wide"> MIDI</span></label><input id="file" type="file" accept=".mid,.midi,audio/midi">
 <button id="save" title="Save the loaded song to My Songs">💾<span class="wide"> Save</span></button>
-<button id="libbtn" title="Show/hide song list">📚</button>
-<button id="plbtn" title="Playlist">🎶<span class="wide"> Playlist</span></button>
-<button id="cfg" title="Sound & visual settings">⚙</button>
-<button id="fs" title="Cinema / fullscreen">⛶</button>
+<button id="cfg" title="Sound & visual settings">⚙<span class="wide"> Settings</span></button>
+<button id="fs" title="Cinema / fullscreen">⛶<span class="wide"> Cinema</span></button>
+</div>
+<button id="libbtn" title="Show/hide song list" aria-label="Songs">📚</button>
+<button id="plbtn" title="Playlist" aria-label="Playlist">🎶<span class="wide"> Playlist</span></button>
+<button id="more" title="More" aria-label="More">⋯</button>
 </header>
 <div id="settings">
 <button id="sus" title="Sustain pedal (toggle) — or hold Shift">🦶 Sustain</button>
@@ -86,7 +135,7 @@ body.cinema #fsx{display:block}#fsx{display:none;position:fixed;top:8px;right:8p
 <div id="msg">Type a song name and press Play, pick one below, or play the keys (A W S E D F T G Y H U J K… · Shift = pedal). Want another song? Type its title and press 🔎 Find.</div>
 <div id="loading">🎹 Loading grand piano…</div>
 <div id="legend"></div>
-<div id="lib"></div>
+<div id="libwrap"><div id="libhead"><b>📚 Songs</b><button id="libx" aria-label="Close songs">✕</button></div><div id="lib"></div></div>
 <div id="main">
 <div id="stage"><canvas id="cv"></canvas></div>
 <aside id="pl">
@@ -100,6 +149,7 @@ body.cinema #fsx{display:block}#fsx{display:none;position:fixed;top:8px;right:8p
 </aside>
 </div>
 </div>
+<div id="scrim"></div><div id="toast"><span id="toastt"></span><button id="toastx" aria-label="Dismiss">✕</button></div>
 <button id="fsx" onclick="document.getElementById('fs').click()">✕</button>
 <script src="songs.js"></script>
 <script src="audio.js"></script>

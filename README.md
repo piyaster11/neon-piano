@@ -64,3 +64,11 @@ Piano samples: **Salamander Grand Piano V3** by Alexander Holm, licensed [CC-BY 
 
 ## License
 MIT for the code (the samples are CC-BY 3.0, see Credits). The melodies are public-domain or traditional tunes, encoded by hand.
+
+## 📱 Phones & iPhone (v6)
+- Responsive phone layout: compact top bar with a ⋯ overflow menu, library as a bottom sheet, playlist as a side drawer (both auto-close when a song starts so the keys stay visible), 44px tap targets, safe-area insets (notch/home bar), `100dvh`, no horizontal scroll.
+- Portrait shows fewer octaves (songs still fit their range) and suggests rotating to landscape.
+- No double-tap/pinch zoom, text selection or long-press callout on the piano.
+- iOS audio unlock on first tap, `audioSession = playback` where supported, a one-time Silent-mode tip, and audio resumes after the app returns from the background.
+- Lighter particles/bloom on phones; on cellular / Data Saver only the main sample layer loads (extra layers wait for Wi-Fi).
+- Installable PWA (manifest, icons, Add to Home Screen tip on iOS Safari) with a service worker that caches the app, piano samples and songs for offline play.
